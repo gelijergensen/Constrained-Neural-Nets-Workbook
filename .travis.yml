@@ -10,6 +10,6 @@ install:
   - conda install --yes python=$PY_VERS pip pytorch torchvision cudatoolkit=10.0 -c pytorch
   - "pip install -U pip"
   - "pip install pytest"
-  - "python install -e ."
+  - "pip install -e ."
 # - "pip install pytest-timeout"
 script: pytest
