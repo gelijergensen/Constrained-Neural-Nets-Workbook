@@ -7,7 +7,7 @@ before_install:
   - ./miniconda.sh -b  -p /home/travis/miniconda
   - export PATH=/home/travis/miniconda/bin:$PATH
 install:
-  - conda install --yes python=$PY_VERS pytorch torchvision cudatoolkit=10.0 -c pytorch pip
+  - conda install --yes python=$PY_VERS pip pytorch torchvision cudatoolkit=10.0 -c pytorch
   - "pip install -U pip"
   - "pip install pytest"
   - "python install -e ."
