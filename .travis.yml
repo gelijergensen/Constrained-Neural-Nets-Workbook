@@ -1,15 +1,11 @@
-language: generic
-env:
-  - PY_VERS="3.6"
-before_install:
-  - wget "https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh" -O miniconda.sh
-  - chmod +x miniconda.sh
-  - ./miniconda.sh -b  -p /home/travis/miniconda
-  - export PATH=/home/travis/miniconda/bin:$PATH
+language: python
+python:
+  - "3.6"
+cache: pip
 install:
-  - conda install --yes python=$PY_VERS pip pytorch torchvision cudatoolkit=10.0 -c pytorch
-  - "pip install -U pip"
-  - "pip install pytest"
-  - "pip install -e ."
-# - "pip install pytest-timeout"
+  -  pip install -U pip
+  -  pip install https://download.pytorch.org/whl/cu100/torch-1.1.0-cp36-cp36m-linux_x86_64.whl
+  -  pip install https://download.pytorch.org/whl/cu100/torchvision-0.3.0-cp36-cp36m-linux_x86_64.whl
+  -  pip install pytest
+  -  pip install -e .
 script: pytest
