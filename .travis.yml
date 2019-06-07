@@ -1,0 +1,8 @@
+language: python
+python:
+  - "3.6"
+install:
+  - "conda install -U pip"
+  - "python setup.py install"
+  # - "pip install pytest-timeout"
+script: pytest
