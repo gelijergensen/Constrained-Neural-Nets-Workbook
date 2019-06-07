@@ -1,8 +1,12 @@
 language: python
 python:
-  - "3.6"
+  - PY_VERS="3.6"
+before-install:
+  - wget "https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh" -O miniconda.sh
 install:
-  - "conda install -U pip"
-  - "python setup.py install"
-  # - "pip install pytest-timeout"
+  - conda install --yes python=$PY_VERS pytorch torchvision cudatoolkit=10.0 -c pytorch pip
+  - "pip install -U pip"
+  - "pip install pytest"
+  - "python install -e ."
+# - "pip install pytest-timeout"
 script: pytest
