@@ -1,5 +1,5 @@
-language: python
-python:
+language: generic
+env:
   - PY_VERS="3.6"
 before-install:
   - wget "https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh" -O miniconda.sh
