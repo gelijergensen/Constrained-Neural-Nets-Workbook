@@ -26,26 +26,26 @@ def test_batched_loss():
     for xb, yb in train_dl:
         model.train()
 
-        original_parameters = list(x.data.clone().detach()
-                                   for x in model.parameters())[0]
+        original_parameters = next(x.data.clone().detach()
+                                   for x in model.parameters())
 
         batched_loss(model, loss_fn, xb, yb, opt)
 
-        new_parameters = list(x.data.clone().detach()
-                              for x in model.parameters())[0]
+        new_parameters = next(x.data.clone().detach()
+                              for x in model.parameters())
         assert(not torch.equal(original_parameters, new_parameters))
 
         batched_loss(model, loss_fn, xb, yb)
 
-        still_new_parameters = list(x.data.clone().detach()
-                                    for x in model.parameters())[0]
+        still_new_parameters = next(x.data.clone().detach()
+                                    for x in model.parameters())
         assert(torch.equal(new_parameters, still_new_parameters))
         break
 
 
 def test_train_model():
 
-    train_dl, valid_dl = get_mnist_dataloaders()
+    train_dl, valid_dl = get_mnist_dataloaders(batch_size=256)
     model = Mnist_Logistic()
     loss_fn = F.cross_entropy
     opt = optim.SGD(model.parameters(), lr=0.1)
