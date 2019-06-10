@@ -50,7 +50,8 @@ def test_train_model():
     loss_fn = F.cross_entropy
     opt = optim.SGD(model.parameters(), lr=0.1)
 
-    def until(epoch, *args):
+    def until(training_statistics):
+        epoch = training_statistics.get('epoch')
         return epoch < 2
 
     final_epoch = 0
@@ -59,11 +60,11 @@ def test_train_model():
         def __init__(self):
             self.epoch = None
 
-        def __call__(self, epoch, *args):
-            self.epoch = epoch
+        def __call__(self, training_statistics):
+            self.epoch = training_statistics.get('epoch')
 
     log = Log()
 
     train_model(model, train_dl, valid_dl, loss_fn, opt, until, log)
 
-    assert(log.epoch == 1)
+    assert(log.epoch == 2)
