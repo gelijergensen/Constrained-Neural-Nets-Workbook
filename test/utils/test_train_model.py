@@ -3,7 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import optim
 from ..load_test_data import get_mnist_dataloaders
-from ..comparision_utils import iterable_all, iterable_any
 
 from pyinsulate.utils.train_model import batched_loss, train_model
 
