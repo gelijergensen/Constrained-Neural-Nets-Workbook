@@ -1,9 +1,11 @@
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import optim
 from ..load_test_data import get_mnist_dataloaders
+from ..comparision_utils import iterable_all, iterable_any
 
-from pyinsulate.utils.train_model import train_model
+from pyinsulate.utils.train_model import batched_loss, train_model
 
 
 class Mnist_Logistic(nn.Module):
@@ -13,6 +15,33 @@ class Mnist_Logistic(nn.Module):
 
     def forward(self, xb):
         return self.lin(xb)
+
+
+def test_batched_loss():
+
+    train_dl, valid_dl = get_mnist_dataloaders(batch_size=128)
+    model = Mnist_Logistic()
+    loss_fn = F.cross_entropy
+    opt = optim.SGD(model.parameters(), lr=0.9)
+
+    for xb, yb in train_dl:
+        model.train()
+
+        original_parameters = list(x.data.clone().detach()
+                                   for x in model.parameters())[0]
+
+        batched_loss(model, loss_fn, xb, yb, opt)
+
+        new_parameters = list(x.data.clone().detach()
+                              for x in model.parameters())[0]
+        assert(not torch.equal(original_parameters, new_parameters))
+
+        batched_loss(model, loss_fn, xb, yb)
+
+        still_new_parameters = list(x.data.clone().detach()
+                                    for x in model.parameters())[0]
+        assert(torch.equal(new_parameters, still_new_parameters))
+        break
 
 
 def test_train_model():
@@ -29,7 +58,7 @@ def test_train_model():
 
     class Log:
         def __init__(self):
-            epoch = None
+            self.epoch = None
 
         def __call__(self, epoch, *args):
             self.epoch = epoch
