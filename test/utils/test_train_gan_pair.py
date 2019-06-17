@@ -3,7 +3,8 @@ import torch.nn as nn
 from torch import optim
 from ..load_test_data import get_mnist_gan_dataloaders
 
-from pyinsulate.utils.train_gan_pair import gan_batched_losses, train_gan_pair
+from pyinsulate.utils.callback import Callback
+from pyinsulate.utils.train_gan_pair import gan_training_loop, train_gan_pair
 
 
 class Mnist_Generator(nn.Module):
@@ -42,8 +43,10 @@ def test_gan_batched_losses():
         dis_orig_params = next(x.data.clone().detach()
                                for x in discr.parameters())
 
-        gan_batched_losses(gener, discr, loss_fn, None,
-                           xb, yb, gener_opt, discr_opt)
+        gan_training_loop(
+            gener, discr, loss_fn, None, xb, yb, 1, 0, print, list(), False,
+            gener_opt, discr_opt
+        )
 
         gen_new_params = next(x.data.clone().detach()
                               for x in gener.parameters())
@@ -52,7 +55,9 @@ def test_gan_batched_losses():
         assert(not torch.equal(gen_orig_params, gen_new_params))
         assert(not torch.equal(dis_orig_params, dis_new_params))
 
-        gan_batched_losses(gener, discr, loss_fn, None, xb, yb)
+        gan_training_loop(
+            gener, discr, loss_fn, None, xb, yb, 1, 0, print, list(), True
+        )
 
         gen_still_new_params = next(x.data.clone().detach()
                                     for x in gener.parameters())
@@ -63,7 +68,7 @@ def test_gan_batched_losses():
         break
 
 
-def test_train_model():
+def test_train_gan_pair():
 
     train_dl, valid_dl = get_mnist_gan_dataloaders(batch_size=128)
     gener = Mnist_Generator()
@@ -71,22 +76,22 @@ def test_train_model():
     gener_opt = optim.SGD(gener.parameters(), lr=0.1)
     discr_opt = optim.SGD(discr.parameters(), lr=0.1)
 
-    def until(training_statistics):
-        epoch = training_statistics.get('epoch')
-        return epoch < 2
+    def should_stop(context):
+        epoch = context.get('epoch')
+        return epoch == 2
 
     final_epoch = 0
 
-    class Log:
+    class EpochLogger(Callback):
         def __init__(self):
             self.epoch = None
 
-        def __call__(self, training_statistics):
-            self.epoch = training_statistics.get('epoch')
+        def on_train_epoch_end(self, context):
+            self.epoch = context.get('epoch')
 
-    log = Log()
+    epochLogger = EpochLogger()
 
     train_gan_pair(gener, discr, train_dl, valid_dl,
-                   gener_opt, discr_opt, until, log=log)
+                   gener_opt, discr_opt, should_stop, callbacks=[epochLogger])
 
-    assert(log.epoch == 2)
+    assert(epochLogger.epoch == 1)
