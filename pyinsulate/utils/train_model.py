@@ -4,7 +4,7 @@ import torch
 __all__ = ["train_model"]
 
 
-def train_model(model, train_dl, valid_dl, loss_fn, opt, check_stop, log=print):
+def train_model(model, train_dl, valid_dl, loss_fn, opt, should_stop, log=print, callbacks=None):
     """Trains a model until the desired criterion is met
 
     :param model: a model to train
@@ -12,38 +12,44 @@ def train_model(model, train_dl, valid_dl, loss_fn, opt, check_stop, log=print):
     :param valid_dl: the dataloader which provides validation batches
     :param loss_fn: a loss function: (model_output, target) -> number
     :param opt: optimizer
-    :param check_stop: a function which determines when to stop training:
-        (training_statistics) -> bool (False ends training)
-    :param log: a function for logging: (training_statistics) -> void
-        Defaults to the standard print function
+    :param should_stop: a function which determines when to stop training:
+        (context) -> bool (True ends training)
+    :param log: a function for logging. Defaults to the standard print function
+    :param callbacks: an optional list of callbacks to apply
     """
-    training_statistics = {
-        'epoch': 0,
-        'train_loss': None,
-        'valid_loss': None,
-    }
-    while check_stop(training_statistics):
+    if callbacks is None:
+        callbacks = list()
+
+    for callback in callbacks:
+        callback.initialize(locals())
+
+    epoch = 0
+    while not should_stop(locals()):
+        # Handle callbacks
+        for callback in callbacks:
+            callback.on_train_epoch_start(locals())
         # Train
         model.train()
-        train_losses, train_counts = zip(
-            *(batched_loss(model, loss_fn, xb, yb, opt) for xb, yb in train_dl)
-        )
+        for xb, yb in train_dl:
+            training_loop(model, loss_fn, xb, yb, log, callbacks, False, opt)
+        # Handle callbacks
+        for callback in callbacks:
+            callback.on_train_epoch_end(locals())
+        # Handle callbacks
+        for callback in callbacks:
+            callback.on_valid_epoch_start(locals())
         # Validate
-        model.eval()
         with torch.no_grad():
-            valid_losses, valid_counts = zip(
-                *(batched_loss(model, loss_fn, xb, yb) for xb, yb in valid_dl)
-            )
-        # Log statistics
-        training_statistics['train_loss'] = np.average(
-            train_losses, weights=train_counts)
-        training_statistics['valid_loss'] = np.average(
-            valid_losses, weights=valid_counts)
-        training_statistics['epoch'] += 1
-        log(training_statistics)
+            model.eval()
+            for xb, yb in valid_dl:
+                training_loop(model, loss_fn, xb, yb, log, callbacks, True)
+        # Handle callbacks
+        for callback in callbacks:
+            callback.on_valid_epoch_end(locals())
+        epoch += 1
 
 
-def batched_loss(model, loss_fn, xb, yb, opt=None):
+def training_loop(model, loss_fn, xb, yb, log, callbacks, is_validation, opt=None):
     """Computes the loss for a model on a batch (xb, yb). Updates the model if
     opt is not None
 
@@ -51,14 +57,34 @@ def batched_loss(model, loss_fn, xb, yb, opt=None):
     :param loss_fn: a loss function: (model_output, target) -> number
     :param xb: batch of inputs
     :param yb: batch of targets
+    :param log: a function for logging. Defaults to the standard print function
+    :param callbacks: an optional list of callbacks to apply
+    :param is_validation: boolean for whether this is validation data
     :param opt: optional optimizer. If not provided, then model is not updated
-    :returns: loss, batchsize
     """
+    # Handle callbacks
+    if is_validation:
+        for callback in callbacks:
+            callback.on_valid_batch_start(locals())
+    else:
+        for callback in callbacks:
+            callback.on_train_batch_start(locals())
+    # Move xb and yb
+    device = next(model.parameters()).device
+    xb = xb.to(device)
+    yb = yb.to(device)
+    # Evaluate model
     loss = loss_fn(model(xb), yb)
-
+    # Update model
     if opt is not None:
         opt.zero_grad()
         loss.backward()
         opt.step()
-
-    return loss.item(), len(xb)
+    batchsize = len(xb)
+    # Handle callbacks
+    if is_validation:
+        for callback in callbacks:
+            callback.on_valid_batch_end(locals())
+    else:
+        for callback in callbacks:
+            callback.on_train_batch_end(locals())
