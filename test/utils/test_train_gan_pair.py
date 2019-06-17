@@ -25,7 +25,7 @@ class Mnist_Discriminator(nn.Module):
         return torch.sigmoid(self.lin(xb))
 
 
-def test_gan_batched_losses():
+def test_gan_training_loop():
 
     train_dl, valid_dl = get_mnist_gan_dataloaders(batch_size=128)
     gener = Mnist_Generator()
@@ -79,8 +79,6 @@ def test_train_gan_pair():
     def should_stop(context):
         epoch = context.get('epoch')
         return epoch == 2
-
-    final_epoch = 0
 
     class EpochLogger(Callback):
         def __init__(self):

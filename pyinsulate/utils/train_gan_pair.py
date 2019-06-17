@@ -86,7 +86,6 @@ def gan_training_loop(gener, discr, discr_loss_fn, extra_gener_loss_fn, xb, yb, 
     :param log: a function for logging. Defaults to the standard print function
     :param callbacks: an optional list of callbacks to apply
     """
-
     # Handle callbacks
     if is_validation:
         for callback in callbacks:
@@ -127,6 +126,7 @@ def gan_training_loop(gener, discr, discr_loss_fn, extra_gener_loss_fn, xb, yb, 
         gener_opt.zero_grad()
         gener_loss.backward()
         gener_opt.step()
+    batchsize = len(xb)
     # Handle callbacks
     if is_validation:
         for callback in callbacks:
