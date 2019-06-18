@@ -39,9 +39,11 @@ def test_loss_logger():
         return epoch == 1
 
     gen_loss_logger = LossLogger(
-        train=True, valid=True, model_type='gener')
+        train=True, valid=True, model_type='gener'
+    )
     dis_loss_logger = LossLogger(
-        train=True, valid=True, model_type='discr')
+        train=True, valid=True, model_type='discr'
+    )
 
     train_gan_pair(
         gener, discr, train_dl, valid_dl, gener_opt, discr_opt, should_stop,
