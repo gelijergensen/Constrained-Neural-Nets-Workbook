@@ -26,27 +26,27 @@ class OutputLogger(Callback):
                 '%s not yet supported in OutputLogger' % model_type)
 
     def initialize(self, context):
+        # Grab the devices
+        self.cpu = torch.device('cpu')
         device = next(context.get(self.model_type).parameters()).device
         # Grab the first item in the train_dl / valid_dl to monitor
         if self.train:
             self.train_xb, self.train_yb = next(iter(context.get('train_dl')))
-            self.train_xb = self.train_xb[0].to(device)
-            self.train_yb = self.train_yb[0].to(device)
+            self.train_xb = self.train_xb.to(device)
+            self.train_yb = self.train_yb.to(device)
             self.train_outputs = list()
         if self.valid:
             self.valid_xb, self.valid_yb = next(iter(context.get('valid_dl')))
-            self.valid_xb = self.valid_xb[0].to(device)
-            self.valid_yb = self.valid_yb[0].to(device)
+            self.valid_xb = self.valid_xb.to(device)
+            self.valid_yb = self.valid_yb.to(device)
             self.valid_outputs = list()
 
     def on_valid_epoch_end(self, context):
         if self.train:
             self.train_outputs.append(
-                context.get(self.model_type)(
-                    self.train_xb[None, ...])[0].cpu()
+                context.get(self.model_type)(self.train_xb).to(self.cpu)
             )
         if self.valid:
             self.valid_outputs.append(
-                context.get(self.model_type)(
-                    self.valid_xb[None, ...])[0].cpu()
+                context.get(self.model_type)(self.valid_xb).to(self.cpu)
             )
