@@ -4,7 +4,7 @@ import torch
 __all__ = ["train_model"]
 
 
-def train_model(model, train_dl, valid_dl, loss_fn, opt, should_stop, log=print, callbacks=None):
+def train_model(model, train_dl, valid_dl, loss_fn, opt, should_stop, log=print, callbacks=None, start_epoch=0):
     """Trains a model until the desired criterion is met
 
     :param model: a model to train
@@ -16,14 +16,21 @@ def train_model(model, train_dl, valid_dl, loss_fn, opt, should_stop, log=print,
         (context) -> bool (True ends training)
     :param log: a function for logging. Defaults to the standard print function
     :param callbacks: an optional list of callbacks to apply
+    :param start_epoch: epoch to start training. Set to a higher value than one
+        to "resume" training
     """
     if callbacks is None:
         callbacks = list()
 
-    for callback in callbacks:
-        callback.initialize(locals())
+    epoch = start_epoch
 
-    epoch = 0
+    if epoch > 0:
+        for callback in callbacks:
+            callback.resume(locals())
+    else:
+        for callback in callbacks:
+            callback.initialize(locals())
+
     while not should_stop(locals()):
         # Handle callbacks
         for callback in callbacks:
@@ -47,6 +54,9 @@ def train_model(model, train_dl, valid_dl, loss_fn, opt, should_stop, log=print,
         for callback in callbacks:
             callback.on_valid_epoch_end(locals())
         epoch += 1
+
+    for callback in callbacks:
+        callback.pause(locals())
 
 
 def training_loop(model, loss_fn, xb, yb, log, callbacks, is_validation, opt=None):

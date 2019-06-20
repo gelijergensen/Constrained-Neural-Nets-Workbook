@@ -5,7 +5,7 @@ import torch.nn as nn
 __all__ = ["train_gan_pair"]
 
 
-def train_gan_pair(gener, discr, train_dl, valid_dl, gener_opt, discr_opt, should_stop, discr_loss_fn=nn.BCELoss(), extra_gener_loss_fn=None, real_label=1, fake_label=0, log=print, callbacks=None):
+def train_gan_pair(gener, discr, train_dl, valid_dl, gener_opt, discr_opt, should_stop, discr_loss_fn=nn.BCELoss(), extra_gener_loss_fn=None, real_label=1, fake_label=0, log=print, callbacks=None, start_epoch=0):
     """Trains a generator/discriminator pair until the desired criterion is met
 
     :param gener: model which generates examples from the training inputs
@@ -24,14 +24,21 @@ def train_gan_pair(gener, discr, train_dl, valid_dl, gener_opt, discr_opt, shoul
     :param fake_label: expected value for fake outputs. Defaults to 0
     :param log: a function for logging. Defaults to the standard print function
     :param callbacks: an optional list of callbacks to apply
+    :param start_epoch: epoch to start training. Set to a higher value than one
+        to "resume" training
     """
     if callbacks is None:
         callbacks = list()
 
-    for callback in callbacks:
-        callback.initialize(locals())
+    epoch = start_epoch
 
-    epoch = 0
+    if epoch > 0:
+        for callback in callbacks:
+            callback.resume(locals())
+    else:
+        for callback in callbacks:
+            callback.initialize(locals())
+
     while not should_stop(locals()):
         # Handle callbacks
         for callback in callbacks:
@@ -63,6 +70,9 @@ def train_gan_pair(gener, discr, train_dl, valid_dl, gener_opt, discr_opt, shoul
         for callback in callbacks:
             callback.on_valid_epoch_end(locals())
         epoch += 1
+
+    for callback in callbacks:
+        callback.pause(locals())
 
 
 def gan_training_loop(gener, discr, discr_loss_fn, extra_gener_loss_fn, xb, yb, real_label, fake_label, log, callbacks, is_validation, gener_opt=None, discr_opt=None):

@@ -25,11 +25,11 @@ def test_epoch_logger():
 
     def should_stop(context):
         epoch = context.get('epoch')
-        return epoch == 1
+        return epoch == 3
 
     epoch_logger = EpochLogger()
 
     train_model(model, train_dl, valid_dl, loss_fn, opt,
-                should_stop, callbacks=[epoch_logger])
+                should_stop, callbacks=[epoch_logger], start_epoch=2)
 
-    assert(epoch_logger.epoch == 0)
+    assert(epoch_logger.epoch == 2)
