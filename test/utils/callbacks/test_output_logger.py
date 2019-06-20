@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torch import optim
 from ...load_test_data import get_mnist_gan_dataloaders
 
-from pyinsulate.utils.callbacks import LossLogger
+from pyinsulate.utils.callbacks import OutputLogger
 from pyinsulate.utils.train_gan_pair import train_gan_pair
 
 
@@ -26,7 +26,7 @@ class Mnist_Discriminator(nn.Module):
         return torch.sigmoid(self.lin(xb))
 
 
-def test_loss_logger():
+def test_output_logger():
 
     train_dl, valid_dl = get_mnist_gan_dataloaders(batch_size=128)
     gener = Mnist_Generator()
@@ -38,19 +38,18 @@ def test_loss_logger():
         epoch = context.get('epoch')
         return epoch == 1
 
-    gen_loss_logger = LossLogger(
+    gen_output_logger = OutputLogger(
         train=True, valid=True, model_type='gener'
-    )
-    dis_loss_logger = LossLogger(
-        train=True, valid=True, model_type='discr'
     )
 
     train_gan_pair(
         gener, discr, train_dl, valid_dl, gener_opt, discr_opt, should_stop,
-        callbacks=[gen_loss_logger, dis_loss_logger]
+        callbacks=[gen_output_logger]
     )
 
-    assert(len(gen_loss_logger.train_losses) > 0)
-    assert(len(dis_loss_logger.train_losses) > 0)
-    assert(len(gen_loss_logger.valid_losses) > 0)
-    assert(len(dis_loss_logger.valid_losses) > 0)
+    assert(len(gen_output_logger.train_outputs) > 0)
+    assert(len(gen_output_logger.valid_outputs) > 0)
+    assert(gen_output_logger.train_outputs[0].size(
+    ) == gen_output_logger.train_yb.size())
+    assert(gen_output_logger.valid_outputs[0].size(
+    ) == gen_output_logger.valid_yb.size())
