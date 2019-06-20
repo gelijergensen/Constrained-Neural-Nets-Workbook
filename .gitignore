@@ -8,5 +8,9 @@ build/
 dist/
 *.egg-info/
 
+# vscode stuff
+.vscode/
+.pytest_cache/
+
 # Local directories for some of the data
 .temp
