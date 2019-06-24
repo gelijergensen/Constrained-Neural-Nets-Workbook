@@ -4,7 +4,6 @@ import torch.nn.functional as F
 from torch import optim
 from ..load_test_data import get_mnist_dataloaders
 
-from pyinsulate.utils.callbacks import EpochLogger
 from pyinsulate.utils.train_model import training_loop, train_model
 
 
