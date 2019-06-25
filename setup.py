@@ -20,7 +20,7 @@ CLASSIFIERS = [
     'Topic :: Scientific/Engineering :: Artificial Intelligence',
     'Topic :: Scientific/Engineering :: Information Analysis']
 
-PACKAGE_REQUIREMENTS = ['numpy', 'torch', 'torchvision']
+PACKAGE_REQUIREMENTS = ['numpy', 'torch', 'torchvision', 'ignite']
 
 if __name__ == '__main__':
     setup(name='pyinsulate', version='0.0.0.0',
