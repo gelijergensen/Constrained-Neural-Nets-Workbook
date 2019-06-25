@@ -32,6 +32,6 @@ def test_object_logger():
 
     trainer.add_event_handler(Events.EPOCH_COMPLETED, epoch_logger)
 
-    trainer.run(train_dl, max_epochs=20)
+    trainer.run(train_dl, max_epochs=1)
 
-    assert(len(epoch_logger.values) == 20)
+    assert(len(epoch_logger.values) == 1)
