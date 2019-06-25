@@ -14,3 +14,6 @@ dist/
 
 # Local directories for some of the data
 .temp
+
+# Local directory containing various images of the results
+results/
