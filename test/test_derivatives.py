@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 
-from pyinsulate.derivatives import jacobian
+from pyinsulate.derivatives import jacobian, trace
 
 
 def test_jacobian():
@@ -66,3 +66,19 @@ def test_jacobian():
     bat_jac = jacobian(out, ins, batched=True)
 
     assert(torch.allclose(jac, bat_jac[0]))
+
+
+def test_trace():
+
+    # Unbatched
+    rand_length = int(np.random.randint(1, 10, 1))
+    ins = torch.rand((rand_length, rand_length))
+    trc = trace(ins)
+    assert(torch.allclose(trc, torch.trace(ins)))
+
+    batchsize = int(np.random.randint(1, 10))
+    ins = ins.unsqueeze(0).expand(batchsize, *ins.size())
+
+    ans = trace(ins)
+    for b in range(batchsize):
+        assert(torch.allclose(ans[b], trc))

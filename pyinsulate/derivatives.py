@@ -106,17 +106,12 @@ def jacobian_and_hessian(outs, ins, batched=False, create_graph=False, allow_unu
     return jac, hes
 
 
-def trace(tensor, batched=False):
-    """Computes the trace of a possibly batched tensor
+def trace(tensor):
+    """Computes the trace of the last two dimensions of a tensor
 
-    :param batched: whether the first dimension is actually a batch dimension 
-        (i.e. the tensor comes from a function applied to an entire batch)
     :returns: the trace of the tensor. Size (1,) or (tensor.size()[0], 1)
     """
-    if batched:
-        return torch.einsum('ii->', tensor)
-    else:
-        return torch.einsum('ijj->ij', tensor)
+    return torch.einsum('...ii->...', tensor)
 
 
 def divergence(outs, ins, jacobian=None, batched=False, create_graph=False, allow_unused=False):
@@ -151,5 +146,5 @@ def jacobian_and_laplacian(outs, ins, batched=False, create_graph=False, allow_u
     """
     jac, hes = jacobian_and_hessian(
         outs, ins, batched=batched, create_graph=create_graph, allow_unused=allow_unused)
-    lap = trace(hes, batched=batched)
+    lap = trace(hes)
     return jac, lap
