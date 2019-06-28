@@ -2,7 +2,11 @@ import torch
 from torch import autograd
 
 
-def jacobian(outputs, inputs, create_graph=False, allow_unused=True):
+__all__ = ["jacobian", "jacobian_and_hessian", "trace", "divergence",
+           "jacobian_and_laplacian"]
+
+
+def _jacobian(outputs, inputs, create_graph, allow_unused):
     """Computes the jacobian of outputs with respect to inputs
 
     :param outputs: tensor for the output of some function
@@ -29,7 +33,7 @@ def jacobian(outputs, inputs, create_graph=False, allow_unused=True):
     return jac.view(outputs.size() + inputs.size())
 
 
-def batched_jacobian(outputs, inputs, create_graph=False, allow_unused=True):
+def _batched_jacobian(outputs, inputs, create_graph, allow_unused):
     """Computes the jacobian of a vector batched outputs with respected to inputs
 
     :param outputs: matrix for the output of some vector function.
@@ -61,3 +65,91 @@ def batched_jacobian(outputs, inputs, create_graph=False, allow_unused=True):
         jac.requires_grad_()
 
     return jac.view(batchsize, *outsize, *insize)
+
+
+def jacobian(outs, ins, batched=False, create_graph=False, allow_unused=False):
+    """Computes the jacobian of outs with respect to in
+
+    :param outs: output of some tensor function
+    :param ins: input to some tensor function
+    :param batched: whether the first dimension of outs and ins is actually a
+        batch dimension (i.e. the function was applied to an entire batch)
+    :param create_graph: whether the resulting hessian should be differentiable
+    :param allow_unused: whether terms in ins are allowed to not contribute to
+        any of outs
+    :returns jacobian. Size (*outs.size(), *ins.size()) or 
+        (batchsize, *outs.size()[1:], *ins.size()[1:])
+    """
+    if batched:
+        return _batched_jacobian(outs, ins, create_graph=create_graph,
+                                 allow_unused=allow_unused)
+    else:
+        return _jacobian(outs, ins, create_graph=create_graph,
+                         allow_unused=allow_unused)
+
+
+def jacobian_and_hessian(outs, ins, batched=False, create_graph=False, allow_unused=False):
+    """Computes the jacobian and the hessian of outs with respect to ins
+
+    :param outs: output of some tensor function
+    :param ins: input to some tensor function
+    :param batched: whether the first dimension of outs and ins is actually a
+        batch dimension (i.e. the function was applied to an entire batch)
+    :param create_graph: whether the resulting hessian should be differentiable
+    :param allow_unused: whether terms in ins are allowed to not contribute to
+        any of outs
+    :returns jacobian, hessian
+    """
+    jac = jacobian(outs, ins, create_graph=True, allow_unused=allow_unused)
+    hes = jacobian(jac, ins, create_graph=create_graph,
+                   allow_unused=allow_unused)
+    return jac, hes
+
+
+def trace(tensor, batched=False):
+    """Computes the trace of a possibly batched tensor
+
+    :param batched: whether the first dimension is actually a batch dimension 
+        (i.e. the tensor comes from a function applied to an entire batch)
+    :returns: the trace of the tensor. Size (1,) or (tensor.size()[0], 1)
+    """
+    if batched:
+        return torch.einsum('ii->', tensor)
+    else:
+        return torch.einsum('ijj->ij', tensor)
+
+
+def divergence(outs, ins, jacobian=None, batched=False, create_graph=False, allow_unused=False):
+    """Computes the divergence of outs with respect to ins. If jacobian is 
+    provided, then will be more efficient
+
+    :param outs: output of some tensor function
+    :param ins: input to some tensor function
+    :param jacobian: optional parameter for the jacobian of out w.r.t. in
+    :param batched: whether the first dimension of outs and ins is actually a
+        batch dimension (i.e. the function was applied to an entire batch)
+    :param allow_unused: whether terms in ins are allowed to not contribute to
+        any of outs
+    :returns: divergence tensor. Size (1,) or (out.size()[0], 1)
+    """
+    if jacobian is None:
+        jacobian = jacobian(
+            outs, ins, batched=batched, create_graph=create_graph, allow_unused=allow_unused)
+    return trace(jacobian)
+
+
+def jacobian_and_laplacian(outs, ins, batched=False, create_graph=False, allow_unused=False):
+    """This currently computes the laplacian by using the entire hessian. There
+    may be a more efficient way to do this
+
+    :param outs: output of some tensor function
+    :param ins: input to some tensor function
+    :param batched: whether the first dimension of outs and ins is actually a
+        batch dimension (i.e. the function was applied to an entire batch)
+    :param create_graph: whether the resulting hessian should be differentiable
+    :returns jacobian, laplacian
+    """
+    jac, hes = jacobian_and_hessian(
+        outs, ins, batched=batched, create_graph=create_graph, allow_unused=allow_unused)
+    lap = trace(hes, batched=batched)
+    return jac, lap
