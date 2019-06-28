@@ -1,0 +1,185 @@
+import functools
+from ignite.engine import Engine, Events
+from ignite.metrics import Loss
+from ignite.utils import convert_tensor
+import numpy as np
+import os
+import torch
+import torch.autograd as autograd
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import Dataset, DataLoader
+
+from pyinsulate.losses import steady_state_turbulence
+
+import time
+
+
+def load_data(filepath, num_training, batch_size=32):
+    all_indices = np.random.permutation(128*128*128)
+    train_idxs = all_indices[:num_training]
+    test_idxs = all_indices[num_training:]
+
+    train_dl = DataLoader(ProofOfConceptDataset(
+        filepath, train_idxs), shuffle=True, batch_size=batch_size
+    )
+    test_dl = DataLoader(ProofOfConceptDataset(
+        filepath, test_idxs), batch_size=batch_size
+    )
+
+    return train_dl, test_dl
+
+
+class ProofOfConceptDataset(Dataset):
+
+    # static data cache
+    cached_data = dict()
+
+    def __init__(self, filepath, indices):
+        self.data = self.load_data(filepath)
+        self.indices = indices
+
+    def load_data(self, filepath):
+        """Caches the data so that multiple datasets can share the data"""
+        if filepath in self.cached_data:
+            return self.cached_data[filepath]
+
+        data = np.load(filepath).astype(np.float32)
+        velocity = torch.from_numpy(data).view(-1, 3)
+        position = torch.stack(torch.meshgrid(
+            [
+                torch.linspace(-0.5, 0.5, 128),
+                torch.linspace(-0.5, 0.5, 128),
+                torch.linspace(-0.5, 0.5, 128)
+            ]
+        ), dim=-1).view(-1, 3)
+
+        self.cached_data[filepath] = (position, velocity)
+        return (position, velocity)
+
+    def __len__(self):
+        return len(self.indices)
+
+    def __getitem__(self, idx):
+        return self.data[0][idx].requires_grad_(), self.data[1][idx]
+
+
+class SequentialRELU(nn.Module):
+
+    def __init__(self, in_size, out_size, sizes=None):
+        super().__init__()
+        if sizes is None:
+            sizes = [20, 20, 20, 20, 20]
+        self.relu = nn.ReLU()
+        self.linear_start = nn.Linear(in_size, sizes[0])
+        self.linear_end = nn.Linear(sizes[-1], out_size)
+
+        for i in range(len(sizes) - 1):
+            setattr(self, f'linear{i}', nn.Linear(sizes[i], sizes[i+1]))
+
+        self.linears = \
+            [self.linear_start, ] + \
+            [getattr(self, f'linear{i}') for i in range(len(sizes) - 1)] + \
+            [self.linear_end, ]
+
+    def forward(self, xb):
+        for lin in self.linears:
+            xb = self.relu(lin(xb))
+        return self.relu(xb)
+
+
+def prepare_batch(batch, device=None, non_blocking=False):
+    """Prepare batch for training: pass to a device with options."""
+    return tuple(convert_tensor(x, device=device, non_blocking=non_blocking) for x in batch)
+
+
+def create_trainer(model, optimizer, loss_fn, pde_loss_fn=None):
+
+    def _update(engine, batch):
+        model.train()
+        optimizer.zero_grad()
+        xb, yb = prepare_batch(batch)
+        out = model(xb)
+        pde_loss = 0 if pde_loss_fn is None else pde_loss_fn(out, xb)
+        loss = loss_fn(out, yb)
+        total_loss = loss + pde_loss
+        total_loss.backward()
+        opt.step()
+
+        engine.state.pde_loss = pde_loss
+        engine.state.loss = loss
+        return total_loss.item()
+
+    return Engine(_update)
+
+
+def create_evaluator(model, metrics):
+
+    def _inference(engine, batch):
+        model.eval()
+        with torch.enable_grad():  # we need the gradient for the metrics
+            xb, yb = prepare_batch(batch)
+            out = model(xb)
+        return xb, yb, out
+
+    engine = Engine(_inference)
+
+    for name, metric in metrics.items():
+        metric.attach(engine, name)
+
+    return engine
+
+
+if __name__ == "__main__":
+    path = os.path.expandvars('$SCRATCH/data/divfree-test/raw_0100.npy')
+    train_dl, test_dl = load_data(path, 32*32*32, batch_size=128)
+
+    model = SequentialRELU(3, 3)
+    opt = optim.Adam(model.parameters(), lr=0.01)
+    pde_loss = steady_state_turbulence
+    loss = nn.MSELoss()
+
+    # Test PDE Loss
+    times = list()
+    print("Testing loss (actual)")
+    for xb, yb in train_dl:
+        out = model(xb)
+        t0 = time.time()
+        pde_loss(out, xb)
+        t1 = time.time()
+        times.append(t1 - t0)
+    print(
+        f"It took {sum(times)} ({sum(times)/float(len(times))}) seconds for one epoch (iteration)")
+
+    trainer = create_trainer(model, opt, loss, pde_loss_fn=pde_loss)
+    evaluator = create_evaluator(
+        model, metrics={
+            'pde': Loss(pde_loss, output_transform=lambda args: (args[2], args[0])),
+            'mse': Loss(loss, output_transform=lambda args: (args[2], args[1]))
+        }
+    )
+
+    @trainer.on(Events.ITERATION_COMPLETED)
+    def log_training_loss(trainer):
+        print("Epoch[{}] - Total loss: {:.5f} = PDE Loss: {:.5f} + MSE: {:.5f}".format(
+            trainer.state.epoch, trainer.state.output, trainer.state.pde_loss, trainer.state.loss))
+
+    @trainer.on(Events.EPOCH_COMPLETED)
+    def log_training_results(trainer):
+        print("Epoch end")
+        evaluator.run(train_dl)
+        metrics = evaluator.state.metrics
+        print("Validation Results: Epoch[{}] - PDE Loss: {:.5f} + MSE: {:.5f}"
+              .format(trainer.state.epoch, metrics['pde'], metrics['mse']))
+
+    @trainer.on(Events.EPOCH_COMPLETED)
+    def log_validation_results(trainer):
+        print("Epoch end")
+        evaluator.run(test_dl)
+        metrics = evaluator.state.metrics
+        print("Validation Results: Epoch[{}] - PDE Loss: {:.5f} + MSE: {:.5f}"
+              .format(trainer.state.epoch, metrics['pde'], metrics['mse']))
+
+    trainer.run(train_dl, max_epochs=2)
+
+    print('done!')
