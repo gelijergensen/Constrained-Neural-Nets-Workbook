@@ -100,8 +100,9 @@ def jacobian_and_hessian(outs, ins, batched=False, create_graph=False, allow_unu
         any of outs
     :returns jacobian, hessian
     """
-    jac = jacobian(outs, ins, create_graph=True, allow_unused=allow_unused)
-    hes = jacobian(jac, ins, create_graph=create_graph,
+    jac = jacobian(outs, ins, batched=batched,
+                   create_graph=True, allow_unused=allow_unused)
+    hes = jacobian(jac, ins, batched=batched, create_graph=create_graph,
                    allow_unused=allow_unused)
     return jac, hes
 
