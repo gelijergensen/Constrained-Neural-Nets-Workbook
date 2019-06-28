@@ -1,12 +1,16 @@
 import numpy as np
 import torch
 
-from pyinsulate.derivatives import jacobian, batched_jacobian
+from pyinsulate.derivatives import jacobian
 
 
 def test_jacobian():
 
-    # vector * matrix
+    batchsize = int(np.random.randint(1, 10))
+
+    # vector * matrix  --
+
+    # Unbatched
     rand_lengths = np.random.randint(1, 10, 2)
     ins = torch.rand(tuple(list(rand_lengths[-1:])), requires_grad=True)
     factor = torch.rand(tuple(list(rand_lengths)))
@@ -14,7 +18,17 @@ def test_jacobian():
     jac = jacobian(out, ins)
     assert(torch.allclose(jac, factor))
 
-    # matrix * matrix
+    # Batched
+    ins = ins.unsqueeze(0).expand(batchsize, *ins.size())
+    out = torch.einsum('ij,kj->ki', factor, ins)
+    assert(torch.allclose(torch.squeeze(out), out))
+    bat_jac = jacobian(out, ins, batched=True)
+    for i in range(batchsize):
+        assert(torch.allclose(bat_jac[i], factor))
+
+    # matrix * matrix  --
+
+    # Unbatched
     rand_lengths = np.random.randint(1, 10, 3)
     ins = torch.rand(tuple(list(rand_lengths[-2:])), requires_grad=True)
     factor = torch.rand(tuple(list(rand_lengths[:-1])))
@@ -26,35 +40,29 @@ def test_jacobian():
         ans[:, i, :, i] = factor
     assert(torch.allclose(jac, ans))
 
-
-def test_batched_jacobian():
-
-    batchsize = 5
-    rand_lengths = np.random.randint(1, 10, 2)
-
-    ins = torch.rand((batchsize, rand_lengths[-1]), requires_grad=True)
-    out = torch.relu(ins)
-    jac = batched_jacobian(out, ins)
-    assert(jac.size()[0] == batchsize)
-    assert(jac.size()[1] == jac.size()[2] == rand_lengths[-1])
-
-    factor = torch.rand(tuple(list(rand_lengths)))
-    out = torch.einsum('ij,kj->ki', factor, ins)
-    jac = batched_jacobian(out, ins)
-    for i in range(batchsize):
-        assert(torch.allclose(jac[i], factor))
-
-    # matrix * matrix
-    rand_lengths = np.random.randint(1, 10, 3)
-    ins = torch.rand((5,) + tuple(list(rand_lengths[-2:])), requires_grad=True)
-    factor = torch.rand(tuple(list(rand_lengths[:-1])))
-
+    # Batched
+    ins = ins.unsqueeze(0).expand(batchsize, *ins.size())
     out = torch.einsum('ij,kjl->kil', factor, ins)
-    for i in range(batchsize):
-        assert(torch.allclose(out[i], factor @ ins[i]))
-    jac = batched_jacobian(out, ins)
-    ans = jac.new_zeros(jac.size())
+    bat_jac = jacobian(out, ins, batched=True)
+    ans = jac.new_zeros(bat_jac.size())
     for b in range(batchsize):
-        for i in range(jac.size()[-1]):
+        for i in range(bat_jac.size()[-1]):
             ans[b, :, i, :, i] = factor
-    assert(torch.allclose(jac, ans))
+    assert(torch.allclose(bat_jac, ans))
+
+    # Confirm agreement in complex case  --
+
+    # Unbatched
+    rand_lengths = np.random.randint(1, 10, 5)
+    ins = torch.rand(tuple(list(rand_lengths)), requires_grad=True)
+
+    out = torch.relu(ins)
+    jac = jacobian(out, ins)
+
+    # Batched
+    ins = ins.view(-1, *ins.size())
+
+    out = torch.relu(ins)
+    bat_jac = jacobian(out, ins, batched=True)
+
+    assert(torch.allclose(jac, bat_jac[0]))
