@@ -1,6 +1,6 @@
 import functools
 from ignite.engine import Engine, Events
-from ignite.metrics import Loss
+# from ignite.metrics import Loss
 from ignite.utils import convert_tensor
 import numpy as np
 import os
@@ -10,7 +10,9 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 
+from pyinsulate.ignite import GradientLoss
 from pyinsulate.losses import steady_state_turbulence
+
 
 import time
 
@@ -64,28 +66,48 @@ class ProofOfConceptDataset(Dataset):
         return self.data[0][idx].requires_grad_(), self.data[1][idx]
 
 
-class SequentialRELU(nn.Module):
+class PINN(nn.Module):
+    """A model which is standard dense neural network, realized either as a
+    dense neural network or as a series of 1x1 convolutional filters"""
 
-    def __init__(self, in_size, out_size, sizes=None):
+    @staticmethod
+    def get_layer(in_size, out_size, conv=False):
+        if conv:
+            return nn.Conv1d(in_size, out_size, 1)
+        else:
+            return nn.Linear(in_size, out_size)
+
+    def __init__(self, in_size, out_size, sizes=None, convolutional=False, activation=nn.LeakyReLU(0.01)):
         super().__init__()
         if sizes is None:
             sizes = [20, 20, 20, 20, 20]
-        self.relu = nn.ReLU()
-        self.linear_start = nn.Linear(in_size, sizes[0])
-        self.linear_end = nn.Linear(sizes[-1], out_size)
+        self.conv = convolutional
+        self.act = activation
+        self.layer0 = self.get_layer(in_size, sizes[0], conv=self.conv)
+        for i in range(1, len(sizes)):
+            setattr(self, f'layer{i}',
+                    self.get_layer(sizes[i-1], sizes[i], conv=self.conv))
+        setattr(self, f'layer{len(sizes)}',
+                self.get_layer(sizes[-1], out_size, conv=self.conv))
 
-        for i in range(len(sizes) - 1):
-            setattr(self, f'linear{i}', nn.Linear(sizes[i], sizes[i+1]))
-
-        self.linears = \
-            [self.linear_start, ] + \
-            [getattr(self, f'linear{i}') for i in range(len(sizes) - 1)] + \
-            [self.linear_end, ]
+        self.layers = [getattr(self, f'layer{i}') for i in range(len(sizes)+1)]
 
     def forward(self, xb):
-        for lin in self.linears:
-            xb = self.relu(lin(xb))
-        return self.relu(xb)
+
+        if self.conv:
+            # Add final dummy final "space" dimension
+            xb = xb.unsqueeze(-1)
+            # xb = xb.view(1, *(xb.size()[1:]), xb.size()[0])
+        for layer in self.layers:
+            xb = self.act(layer(xb))
+        self.act(xb)
+        if self.conv:
+            # Convert convolution dimension back to batch dimension
+            # also remove dummy dimension 0
+            # xb = xb.view(xb.size()[-1], *(xb.size()[1:-1]))
+            # remove dummy dimension -1
+            xb = xb.view(xb.size()[:-1])
+        return xb
 
 
 def prepare_batch(batch, device=None, non_blocking=False):
@@ -100,6 +122,8 @@ def create_trainer(model, optimizer, loss_fn, pde_loss_fn=None):
         optimizer.zero_grad()
         xb, yb = prepare_batch(batch)
         out = model(xb)
+        if torch.allclose(out, out.new_zeros(out.size())):
+            print("WARNING! Training is failing")
         pde_loss = 0 if pde_loss_fn is None else pde_loss_fn(out, xb)
         loss = loss_fn(out, yb)
         total_loss = loss + pde_loss
@@ -134,7 +158,11 @@ if __name__ == "__main__":
     path = os.path.expandvars('$SCRATCH/data/divfree-test/raw_0100.npy')
     train_dl, test_dl = load_data(path, 32*32*32, batch_size=128)
 
-    model = SequentialRELU(3, 3)
+    model = PINN(3, 3, convolutional=False, sizes=[
+                 20, 20, 20, 20, 20
+                 ],
+                 activation=nn.LeakyReLU(0.01))
+    print(model)
     opt = optim.Adam(model.parameters(), lr=0.01)
     pde_loss = steady_state_turbulence
     loss = nn.MSELoss()
@@ -154,8 +182,8 @@ if __name__ == "__main__":
     trainer = create_trainer(model, opt, loss, pde_loss_fn=pde_loss)
     evaluator = create_evaluator(
         model, metrics={
-            'pde': Loss(pde_loss, output_transform=lambda args: (args[2], args[0])),
-            'mse': Loss(loss, output_transform=lambda args: (args[2], args[1]))
+            'pde': GradientLoss(pde_loss, output_transform=lambda args: (args[2], args[0])),
+            'mse': GradientLoss(loss, output_transform=lambda args: (args[2], args[1]))
         }
     )
 
@@ -166,20 +194,21 @@ if __name__ == "__main__":
 
     @trainer.on(Events.EPOCH_COMPLETED)
     def log_training_results(trainer):
-        print("Epoch end")
+        print("Evaluating on training...")
         evaluator.run(train_dl)
         metrics = evaluator.state.metrics
         print("Validation Results: Epoch[{}] - PDE Loss: {:.5f} + MSE: {:.5f}"
               .format(trainer.state.epoch, metrics['pde'], metrics['mse']))
 
-    @trainer.on(Events.EPOCH_COMPLETED)
-    def log_validation_results(trainer):
-        print("Epoch end")
-        evaluator.run(test_dl)
-        metrics = evaluator.state.metrics
-        print("Validation Results: Epoch[{}] - PDE Loss: {:.5f} + MSE: {:.5f}"
-              .format(trainer.state.epoch, metrics['pde'], metrics['mse']))
+    # too computationally expensive for now
+    # @trainer.on(Events.EPOCH_COMPLETED)
+    # def log_validation_results(trainer):
+    #     print("Evaluating on validation...")
+    #     evaluator.run(test_dl)
+    #     metrics = evaluator.state.metrics
+    #     print("Validation Results: Epoch[{}] - PDE Loss: {:.5f} + MSE: {:.5f}"
+    #           .format(trainer.state.epoch, metrics['pde'], metrics['mse']))
 
-    trainer.run(train_dl, max_epochs=2)
+    trainer.run(train_dl, max_epochs=200)
 
     print('done!')
