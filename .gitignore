@@ -17,3 +17,9 @@ dist/
 
 # Local directory containing various images of the results
 results/
+
+# All model files
+*.pth
+
+# All slurm outputs
+*.out
