@@ -10,109 +10,144 @@ def _jacobian(outputs, inputs, create_graph, allow_unused):
     """Computes the jacobian of outputs with respect to inputs
 
     :param outputs: tensor for the output of some function
-    :param inputs: tensor for the input of some function (probably a vector)
+    :param inputs: a list of tensors for the inputs of some function
     :param create_graph: set True for the resulting jacobian to be differentible
     :param allow_unused: set False to assert all inputs affected the outputs
-    :returns: a tensor of size (outputs.size() + inputs.size()) containing the
-        jacobian of outputs with respect to inputs
+    :returns: a list of tensors of size (outputs.size() + inputs[i].size())
+        containing the jacobians of outputs with respect to inputs
     """
-    jac = outputs.new_zeros(outputs.size() + inputs.size()
-                            ).view((-1,) + inputs.size())
+
+    jacs = [outputs.new_zeros((*outputs.size(), *ins.size())).view(-1, *ins.size())
+            for ins in inputs]
     for i, out in enumerate(outputs.view(-1)):
-        col_i = autograd.grad(out, inputs, retain_graph=True,
-                              create_graph=create_graph, allow_unused=allow_unused)[0]
-        if col_i is None:
-            # this element of output doesn't depend on the inputs, so leave gradient 0
-            continue
-        else:
-            jac[i] = col_i
+        cols_i = autograd.grad(out, inputs, retain_graph=True,
+                               create_graph=create_graph, allow_unused=allow_unused)
 
-    if create_graph:
-        jac.requires_grad_()
+        cols_A = [autograd.grad(out, ins, retain_graph=True,
+                                create_graph=create_graph, allow_unused=allow_unused)[0] for ins in inputs]
+        cols_B = list(autograd.grad(out, inputs, retain_graph=True,
+                                    create_graph=create_graph, allow_unused=allow_unused))
 
-    return jac.view(outputs.size() + inputs.size())
+        for j, col_i in enumerate(cols_i):
+            if col_i is None:
+                # this element of output doesn't depend on the inputs, so leave gradient 0
+                continue
+            else:
+                jacs[j][i] = col_i
+
+    for j in range(len(jacs)):
+        if create_graph:
+            jacs[j].requires_grad_()
+        jacs[j] = jacs[j].view(*outputs.size(), *(inputs[j].size()))
+
+    return jacs
 
 
 def _batched_jacobian(outputs, inputs, create_graph, allow_unused):
     """Computes the jacobian of a vector batched outputs with respected to inputs
 
-    :param outputs: matrix for the output of some vector function.
+    :param outputs: tensor for the output of some vector function.
         size: (batchsize, *outsize)
-    :param inputs: matrix for the input of some vector function.
-        size: (batchsize, *insize)
+    :param inputs: list of tensors for the inputs of some vector function.
+        size: (batchsize, *insize[i]) for each element of inputs
     :param create_graph: set True for the resulting jacobian to be differentible
     :param allow_unused: set False to assert all inputs affected the outputs
-    :returns: a tensor of size (batchsize, *outsize, *insize) containing the
-        jacobian of outputs with respect to inputs for batch element i in row i
+    :returns: a list of tensors of size (batchsize, *outsize, *insize[i])
+        containing the jacobian of outputs with respect to inputs for batch
+        element b in row b
     """
     batchsize = outputs.size()[0]
     outsize = outputs.size()[1:]
-    insize = inputs.size()[1:]
 
-    jac = outputs.new_zeros((batchsize, *outsize, *insize)
-                            ).view(batchsize, -1, *insize)
+    jacs = [outputs.new_zeros(
+            (batchsize, *outsize, *ins.size()[1:])
+            ).view(batchsize, -1, *ins.size()[1:]) for ins in inputs]
     flat_out = outputs.reshape(batchsize, -1)
-    for i in range(jac.size()[1]):
-        col_i = autograd.grad(flat_out[:, i], inputs, grad_outputs=torch.eye(batchsize), retain_graph=True,
-                              create_graph=create_graph, allow_unused=allow_unused)[0]
-        if col_i is None:
-            # this element of output doesn't depend on the inputs, so leave gradient 0
-            continue
-        else:
-            jac[:, i] = col_i
+    for i in range(flat_out.size()[1]):
+        cols_i = autograd.grad(flat_out[:, i], inputs, grad_outputs=torch.eye(batchsize), retain_graph=True,
+                               create_graph=create_graph, allow_unused=allow_unused)
+        for j, col_i in enumerate(cols_i):
+            if col_i is None:
+                # this element of output doesn't depend on the inputs, so leave gradient 0
+                continue
+            else:
+                jacs[j][:, i] = col_i
 
-    if create_graph:
-        jac.requires_grad_()
+    for j in range(len(jacs)):
+        if create_graph:
+            jacs[j].requires_grad_()
+        jacs[j] = jacs[j].view(batchsize, *outsize, *inputs[j].size()[1:])
 
-    return jac.view(batchsize, *outsize, *insize)
+    return jacs
 
 
 def jacobian(outs, ins, batched=False, create_graph=False, allow_unused=False):
     """Computes the jacobian of outs with respect to in
 
     :param outs: output of some tensor function
-    :param ins: input to some tensor function
+    :param ins: either a single tensor input to some tensor function or a list
+        of tensor inputs to a function
     :param batched: whether the first dimension of outs and ins is actually a
         batch dimension (i.e. the function was applied to an entire batch)
     :param create_graph: whether the resulting hessian should be differentiable
     :param allow_unused: whether terms in ins are allowed to not contribute to
         any of outs
-    :returns jacobian. Size (*outs.size(), *ins.size()) or 
-        (batchsize, *outs.size()[1:], *ins.size()[1:])
+    :returns: jacobian(s) of the same shape as ins. Each jacobian will have 
+        size (*outs.size(), *ins[i].size()) or 
+        (batchsize, *outs.size()[1:], *ins[i].size()[1:])
     """
-    if batched:
-        return _batched_jacobian(outs, ins, create_graph=create_graph,
-                                 allow_unused=allow_unused)
+    if isinstance(ins, list) or isinstance(ins, tuple):
+        if batched:
+            return _batched_jacobian(outs, ins, create_graph=create_graph,
+                                     allow_unused=allow_unused)
+        else:
+            return _jacobian(outs, ins, create_graph=create_graph,
+                             allow_unused=allow_unused)
     else:
-        return _jacobian(outs, ins, create_graph=create_graph,
-                         allow_unused=allow_unused)
+        ins_list = [ins]
+        if batched:
+            return _batched_jacobian(outs, ins_list, create_graph=create_graph,
+                                     allow_unused=allow_unused)[0]
+        else:
+            return _jacobian(outs, ins_list, create_graph=create_graph,
+                             allow_unused=allow_unused)[0]
 
 
 def jacobian_and_hessian(outs, ins, batched=False, create_graph=False, allow_unused=False):
     """Computes the jacobian and the hessian of outs with respect to ins
 
     :param outs: output of some tensor function
-    :param ins: input to some tensor function
+    :param ins: either a single tensor input to some tensor function or a list
+        of tensor inputs to a function
     :param batched: whether the first dimension of outs and ins is actually a
         batch dimension (i.e. the function was applied to an entire batch)
     :param create_graph: whether the resulting hessian should be differentiable
     :param allow_unused: whether terms in ins are allowed to not contribute to
         any of outs
-    :returns jacobian, hessian
+    :returns jacobian, hessian, which are lists if ins is a list
     """
     jac = jacobian(outs, ins, batched=batched,
                    create_graph=True, allow_unused=allow_unused)
-    hes = jacobian(jac, ins, batched=batched, create_graph=create_graph,
-                   allow_unused=allow_unused)
+    if isinstance(jac, list):
+        hes = [jacobian(jac_i, ins,  batched=batched, create_graph=create_graph,
+                        allow_unused=allow_unused) for jac_i in jac]
+    else:
+        hes = jacobian(jac, ins, batched=batched, create_graph=create_graph,
+                       allow_unused=allow_unused)
     return jac, hes
 
 
 def trace(tensor):
     """Computes the trace of the last two dimensions of a tensor
 
-    :returns: the trace of the tensor. Size (1,) or (tensor.size()[0], 1)
+    :param tensor: either a single tensor or a list of tensors
+    :returns: either a single tensor of a list of tensors containing the trace 
+        of the given tensor(s), with each of size (*tensor[i].size()[:-2], 1)
     """
-    return torch.einsum('...ii->...', tensor)
+    if isinstance(tensor, list) or isinstance(tensor, tuple):
+        return [torch.einsum('...ii->...', t) for t in tensor]
+    else:
+        return torch.einsum('...ii->...', tensor)
 
 
 def divergence(outs, ins, jacobian=None, batched=False, create_graph=False, allow_unused=False):
