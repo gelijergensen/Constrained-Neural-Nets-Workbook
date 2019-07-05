@@ -59,6 +59,11 @@ def test_jacobian():
     out = torch.relu(ins)
     jac = jacobian(out, ins)
 
+    # Check that lists work correctly
+    out = torch.relu(ins)
+    list_jac = jacobian(out, [ins, ins])
+    assert(all(torch.allclose(jac, list_jac[i]) for i in range(len(list_jac))))
+
     # Batched
     ins = ins.view(-1, *ins.size())
 
@@ -76,6 +81,12 @@ def test_trace():
     trc = trace(ins)
     assert(torch.allclose(trc, torch.trace(ins)))
 
+    # Check that lists work correctly
+    list_trc = trace([ins, ins])
+    assert(all(torch.allclose(list_trc[i], trc)
+               for i in range(len(list_trc))))
+
+    # Batched
     batchsize = int(np.random.randint(1, 10))
     ins = ins.unsqueeze(0).expand(batchsize, *ins.size())
 
