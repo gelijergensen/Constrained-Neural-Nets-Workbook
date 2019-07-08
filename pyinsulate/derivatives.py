@@ -6,6 +6,14 @@ __all__ = ["jacobian", "jacobian_and_hessian", "trace", "divergence",
            "jacobian_and_laplacian"]
 
 
+def _get_size(tensor):
+    """Returns the size of a tensor, but treats a scalar as a 1-element vector"""
+    if tensor.dim() == 0:
+        return torch.Size([1])
+    else:
+        return tensor.size()
+
+
 def _jacobian(outputs, inputs, create_graph, allow_unused):
     """Computes the jacobian of outputs with respect to inputs
 
@@ -17,7 +25,7 @@ def _jacobian(outputs, inputs, create_graph, allow_unused):
         containing the jacobians of outputs with respect to inputs
     """
 
-    jacs = [outputs.new_zeros((*outputs.size(), *ins.size())).view(-1, *ins.size())
+    jacs = [outputs.new_zeros((*_get_size(outputs), *_get_size(ins))).view(-1, *_get_size(ins))
             for ins in inputs]
     for i, out in enumerate(outputs.view(-1)):
         cols_i = autograd.grad(out, inputs, retain_graph=True,
@@ -38,7 +46,7 @@ def _jacobian(outputs, inputs, create_graph, allow_unused):
     for j in range(len(jacs)):
         if create_graph:
             jacs[j].requires_grad_()
-        jacs[j] = jacs[j].view(*outputs.size(), *(inputs[j].size()))
+        jacs[j] = jacs[j].view(*_get_size(outputs), *_get_size(inputs[j]))
 
     return jacs
 
@@ -56,12 +64,12 @@ def _batched_jacobian(outputs, inputs, create_graph, allow_unused):
         containing the jacobian of outputs with respect to inputs for batch
         element b in row b
     """
-    batchsize = outputs.size()[0]
-    outsize = outputs.size()[1:]
+    batchsize = _get_size(outputs)[0]
+    outsize = _get_size(outputs)[1:]
 
     jacs = [outputs.new_zeros(
-            (batchsize, *outsize, *ins.size()[1:])
-            ).view(batchsize, -1, *ins.size()[1:]) for ins in inputs]
+            (batchsize, *outsize, *_get_size(ins)[1:])
+            ).view(batchsize, -1, *_get_size(ins)[1:]) for ins in inputs]
     flat_out = outputs.reshape(batchsize, -1)
     for i in range(flat_out.size()[1]):
         cols_i = autograd.grad(flat_out[:, i], inputs, grad_outputs=torch.eye(batchsize), retain_graph=True,
@@ -76,7 +84,7 @@ def _batched_jacobian(outputs, inputs, create_graph, allow_unused):
     for j in range(len(jacs)):
         if create_graph:
             jacs[j].requires_grad_()
-        jacs[j] = jacs[j].view(batchsize, *outsize, *inputs[j].size()[1:])
+        jacs[j] = jacs[j].view(batchsize, *outsize, *_get_size(inputs[j])[1:])
 
     return jacs
 
