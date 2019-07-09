@@ -3,8 +3,9 @@ import torch
 from pyinsulate.derivatives import jacobian
 
 
-def constrained_loss(loss, constraints, parameters, warn=True):
-    """Corrects a given loss corrected to account for the constraints
+def constrain_loss(loss, constraints, parameters, warn=True):
+    """Reweights a given loss with the constraints by computing the optimal
+    lagrange multipliers
 
     :param loss: tensor corresponding to the evalutated loss
     :param constraints: a single tensor corresponding to the evaluated
@@ -14,10 +15,10 @@ def constrained_loss(loss, constraints, parameters, warn=True):
         to "error", then will throw a RuntimeError if this occurs
     :returns: the new loss tensor after accounting for the constraints
     """
-    return _constrained_loss(loss, constraints, parameters, warn=warn, allow_unused=True)
+    return _constrain_loss(loss, constraints, parameters, warn=warn, allow_unused=True)
 
 
-def _constrained_loss(loss, constraints, parameters, warn=True, allow_unused=False):
+def _constrain_loss(loss, constraints, parameters, warn=True, allow_unused=False):
     """Assumes that the constraints are well-conditioned and computes the
     constrained loss
 
