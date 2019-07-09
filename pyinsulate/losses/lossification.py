@@ -1,3 +1,6 @@
+"""These are tools which will convert an entire tensor into a single scalar
+tensor, allowing for it to be a loss term"""
+
 import functools
 
 import torch
