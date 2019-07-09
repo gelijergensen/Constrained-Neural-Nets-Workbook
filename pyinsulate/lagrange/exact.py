@@ -1,3 +1,6 @@
+"""Functions for exactly computing the optimal Lagrange multipliers and
+a reweighted loss tensor"""
+
 import torch
 
 from pyinsulate.derivatives import jacobian

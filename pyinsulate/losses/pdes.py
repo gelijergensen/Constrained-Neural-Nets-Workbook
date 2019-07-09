@@ -1,3 +1,5 @@
+"""Implementation of particular PDEs"""
+
 import torch
 
 from pyinsulate.derivatives import jacobian_and_laplacian, divergence
