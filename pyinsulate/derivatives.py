@@ -1,3 +1,5 @@
+"""Tools for differentiably computing derivatives"""
+
 import torch
 from torch import autograd
 

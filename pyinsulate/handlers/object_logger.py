@@ -1,3 +1,6 @@
+"""A handler designed for use with Ignite which stores the value of some object,
+possibly after applying some transformation"""
+
 import traceback
 import torch
 

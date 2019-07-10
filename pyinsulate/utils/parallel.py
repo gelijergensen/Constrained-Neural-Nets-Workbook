@@ -1,3 +1,6 @@
+"""Tools for running models in PyTorch in parallel"""
+
+
 def send_all_models_to_gpus(*models):
     if torch.cuda.is_available():
         print("Ooh, a gpu!")

@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import torch
 
-from pyinsulate.lagrange import _constrain_loss
+from pyinsulate.lagrange.exact import _constrain_loss
 
 
 def test_constrain_loss():
