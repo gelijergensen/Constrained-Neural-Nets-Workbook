@@ -1,6 +1,6 @@
 import torch
 
-from pyinsulate.losses import steady_state_turbulence
+from pyinsulate.losses.pdes import steady_state_turbulence
 
 
 def test_steady_state_turbulence():

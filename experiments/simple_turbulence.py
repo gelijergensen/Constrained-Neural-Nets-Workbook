@@ -15,8 +15,8 @@ import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 
 from pyinsulate.ignite import GradientLoss
-from pyinsulate.losses import steady_state_turbulence
-
+from pyinsulate.losses.pdes import steady_state_turbulence
+from pyinsulate.losses.lossification import lossify, mean_of_sum_of_squares
 
 import time
 
@@ -239,7 +239,7 @@ def create_evaluator(model, metrics):
     return engine
 
 
-def run_analysis(train_dl, test_dl, sizes, activation, logging=False):
+def run_analysis(train_dl, test_dl, sizes, activation, logging=False, max_epochs=20):
     try:
         iter(sizes[0])
         model_fn = ResPINN
@@ -249,7 +249,7 @@ def run_analysis(train_dl, test_dl, sizes, activation, logging=False):
     model = model_fn(3, 3, convolutional=False,
                      sizes=sizes, activation=activation)
     opt = optim.Adam(model.parameters(), lr=0.01)
-    pde_loss = steady_state_turbulence
+    pde_loss = lossify(mean_of_sum_of_squares)(steady_state_turbulence)
     loss = nn.MSELoss()
 
     trainer = create_trainer(model, opt, loss, pde_loss_fn=pde_loss)
@@ -273,7 +273,7 @@ def run_analysis(train_dl, test_dl, sizes, activation, logging=False):
             print("Epoch[{}] - Total loss: {:.5f} = PDE Loss: {:.5f} + MSE: {:.5f}".format(
                 trainer.state.epoch, trainer.state.output, trainer.state.pde_loss, trainer.state.loss))
 
-    trainer.run(train_dl, max_epochs=20)
+    trainer.run(train_dl, max_epochs=max_epochs)
     return (evaluator.state.metrics['pde'], evaluator.state.metrics['mse'])
 
 
@@ -294,7 +294,8 @@ if __name__ == "__main__":
     # pde_loss = steady_state_turbulence
     # loss = nn.MSELoss()
 
-    final_loss = run_analysis(train_dl, test_dl, [20], nn.LeakyReLU())
+    final_loss = run_analysis(
+        train_dl, test_dl, [20], nn.LeakyReLU(), max_epochs=1)
     print(final_loss)
     print('done!')
 

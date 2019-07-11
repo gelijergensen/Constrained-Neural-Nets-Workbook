@@ -3,10 +3,10 @@
 import torch
 
 from pyinsulate.derivatives import jacobian_and_laplacian, divergence
-from pyinsulate.losses.lossification import lossify, mean_of_sum_of_squares
+
+__all__ = ["steady_state_turbulence"]
 
 
-@lossify(mean_of_sum_of_squares)
 def steady_state_turbulence(outputs, inputs, nu=0.01):
     """Computes the steady-state turbulence PDE magnitude, given that the model
     has inputs x,y,z and outputs v_x, v_y, v_z"""
