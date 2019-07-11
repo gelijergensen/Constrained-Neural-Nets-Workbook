@@ -36,16 +36,16 @@ def _constrain_loss(loss, constraints, parameters, warn=True, allow_unused=False
     if constraints.dim() == loss.dim():
         constraints = constraints.unsqueeze(-1)
 
-    jac_f = torch.cat(
-        jacobian(loss, parameters, batched=batched,
-                 create_graph=True, allow_unused=allow_unused),
-        dim=-1)
-    jac_g = torch.cat(
-        jacobian(constraints, parameters, batched=batched,
-                 create_graph=True, allow_unused=allow_unused),
-        dim=-1)
+    jac_f = torch.cat([jac.view(*loss.size(), -1) for jac in
+                       jacobian(loss, parameters, batched=batched,
+                                create_graph=True, allow_unused=allow_unused)],
+                      dim=-1)
+    jac_g = torch.cat([jac.view(*constraints.size(), -1) for jac in
+                       jacobian(constraints, parameters, batched=batched,
+                                create_graph=True, allow_unused=allow_unused)],
+                      dim=-1)
+    jac_fT = jac_f.unsqueeze(-1)
     if batched:
-        jac_fT = jac_f.unsqueeze(-1)
         jacobian_metric = torch.einsum('bij,bkj->bik', jac_g, jac_g)
         try:
             inverse = jacobian_metric.inverse()
@@ -66,7 +66,6 @@ def _constrain_loss(loss, constraints, parameters, warn=True, allow_unused=False
             'bi,bij,bjk->b', constraints, inverse, lambda_pre_inverse)
 
     else:
-        jac_fT = jac_f.transpose(0, 1)
         jacobian_metric = torch.einsum('ij,kj->ik', jac_g, jac_g)
         try:
             inverse = jacobian_metric.inverse()
