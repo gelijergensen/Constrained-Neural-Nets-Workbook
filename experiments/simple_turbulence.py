@@ -1,3 +1,6 @@
+"""An experiment to determine whether it is possible to model a single solution
+to turbulence with a neural network"""
+
 import functools
 from ignite.engine import Engine, Events
 # from ignite.metrics import Loss
