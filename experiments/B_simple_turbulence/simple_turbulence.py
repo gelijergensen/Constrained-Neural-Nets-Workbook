@@ -1,3 +1,6 @@
+"""An experiment to determine whether it is possible to model a single solution
+to turbulence with a neural network"""
+
 import functools
 from ignite.engine import Engine, Events
 # from ignite.metrics import Loss
@@ -12,8 +15,8 @@ import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 
 from pyinsulate.ignite import GradientLoss
-from pyinsulate.losses import steady_state_turbulence
-
+from pyinsulate.losses.pdes import steady_state_turbulence
+from pyinsulate.losses.lossification import lossify, mean_of_sum_of_squares
 
 import time
 
@@ -236,7 +239,7 @@ def create_evaluator(model, metrics):
     return engine
 
 
-def run_analysis(train_dl, test_dl, sizes, activation, logging=False):
+def run_analysis(train_dl, test_dl, sizes, activation, logging=False, max_epochs=20):
     try:
         iter(sizes[0])
         model_fn = ResPINN
@@ -246,7 +249,7 @@ def run_analysis(train_dl, test_dl, sizes, activation, logging=False):
     model = model_fn(3, 3, convolutional=False,
                      sizes=sizes, activation=activation)
     opt = optim.Adam(model.parameters(), lr=0.01)
-    pde_loss = steady_state_turbulence
+    pde_loss = lossify(mean_of_sum_of_squares)(steady_state_turbulence)
     loss = nn.MSELoss()
 
     trainer = create_trainer(model, opt, loss, pde_loss_fn=pde_loss)
@@ -270,73 +273,5 @@ def run_analysis(train_dl, test_dl, sizes, activation, logging=False):
             print("Epoch[{}] - Total loss: {:.5f} = PDE Loss: {:.5f} + MSE: {:.5f}".format(
                 trainer.state.epoch, trainer.state.output, trainer.state.pde_loss, trainer.state.loss))
 
-    trainer.run(train_dl, max_epochs=20)
+    trainer.run(train_dl, max_epochs=max_epochs)
     return (evaluator.state.metrics['pde'], evaluator.state.metrics['mse'])
-
-
-if __name__ == "__main__":
-    path = os.path.expandvars('$SCRATCH/data/divfree-test/raw_0100.npy')
-    train_dl, test_dl = load_data(
-        path, 32*32*32, num_testing=128, batch_size=128)
-
-    # model = PINN(3, 3, convolutional=False, sizes=[
-    #              20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20
-    #              ],
-    #              activation=nn.LeakyReLU())
-    # model = ResPINN(3, 3, convolutional=False, sizes=[
-    #     [20, 20, 20], [20, 20, 20], [20, 20, 20], [20, 20, 20]
-    # ], activation=nn.LeakyReLU(0.01))
-    # print(model)
-    # opt = optim.Adam(model.parameters(), lr=0.01)
-    # pde_loss = steady_state_turbulence
-    # loss = nn.MSELoss()
-
-    final_loss = run_analysis(train_dl, test_dl, [20], nn.LeakyReLU())
-    print(final_loss)
-    print('done!')
-
-    # # Test PDE Loss
-    # times = list()
-    # print("Testing loss (actual)")
-    # for xb, yb in train_dl:
-    #     out = model(xb)
-    #     t0 = time.time()
-    #     pde_loss(out, xb)
-    #     t1 = time.time()
-    #     times.append(t1 - t0)
-    # print(
-    #     f"It took {sum(times)} ({sum(times)/float(len(times))}) seconds for one epoch (iteration)")
-
-    # trainer = create_trainer(model, opt, loss, pde_loss_fn=pde_loss)
-    # evaluator = create_evaluator(
-    #     model, metrics={
-    #         'pde': GradientLoss(pde_loss, output_transform=lambda args: (args[2], args[0])),
-    #         'mse': GradientLoss(loss, output_transform=lambda args: (args[2], args[1]))
-    #     }
-    # )
-
-    # @trainer.on(Events.ITERATION_COMPLETED)
-    # def log_training_loss(trainer):
-    #     print("Epoch[{}] - Total loss: {:.5f} = PDE Loss: {:.5f} + MSE: {:.5f}".format(
-    #         trainer.state.epoch, trainer.state.output, trainer.state.pde_loss, trainer.state.loss))
-
-    # @trainer.on(Events.EPOCH_COMPLETED)
-    # def log_training_results(trainer):
-    #     print("Evaluating on training...")
-    #     evaluator.run(train_dl)
-    #     metrics = evaluator.state.metrics
-    #     print("Validation Results: Epoch[{}] - PDE Loss: {:.5f} + MSE: {:.5f}"
-    #           .format(trainer.state.epoch, metrics['pde'], metrics['mse']))
-
-    # too computationally expensive for now
-    # @trainer.on(Events.EPOCH_COMPLETED)
-    # def log_validation_results(trainer):
-    #     print("Evaluating on validation...")
-    #     evaluator.run(test_dl)
-    #     metrics = evaluator.state.metrics
-    #     print("Validation Results: Epoch[{}] - PDE Loss: {:.5f} + MSE: {:.5f}"
-    #           .format(trainer.state.epoch, metrics['pde'], metrics['mse']))
-
-    # trainer.run(train_dl, max_epochs=200)
-
-    # print('done!')

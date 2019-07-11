@@ -2,8 +2,8 @@ from datetime import datetime
 from multiprocessing import cpu_count, current_process
 import numpy as np
 import os
-from proof_of_concept import run_analysis, load_data, create_dataloaders
-from utilities.hyperthreading import perform_multiprocessed
+from simple_turbulence import run_analysis, load_data, create_dataloaders
+from ..utilities.hyperthreading import perform_multiprocessed
 import torch
 from torch import nn
 
@@ -58,11 +58,11 @@ def finalize(results):
 
 if __name__ == "__main__":
 
-    base_name = "hyper-poc"
+    base_name = "hyper-simple-turbulence"
     time_string = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
     savefile = f"{base_name}_{time_string}.pth"
 
-    print(f"Running hyperthreaded POC with savefile {savefile}")
+    print(f"Running hyperthreaded simple turbulence with savefile {savefile}")
 
     # 4 runs
     nproc = 2

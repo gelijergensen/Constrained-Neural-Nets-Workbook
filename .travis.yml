@@ -11,4 +11,4 @@ install:
   -  pip install -e .
 script: 
   - source loadTestData.sh
-  - pytest
+  - pytest test/
