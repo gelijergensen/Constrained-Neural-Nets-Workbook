@@ -83,60 +83,60 @@ class GradientMetric(with_metaclass(ABCMeta, object)):
                 Events.ITERATION_COMPLETED, self.iteration_completed)
 
     def __add__(self, other):
-        from ignite.metrics import MetricsLambda
-        return MetricsLambda(lambda x, y: x + y, self, other)
+        from pyinsulate.ignite.metric_lambda import GradientMetricsLambda
+        return GradientMetricsLambda(lambda x, y: x + y, self, other)
 
     def __radd__(self, other):
-        from ignite.metrics import MetricsLambda
-        return MetricsLambda(lambda x, y: x + y, other, self)
+        from pyinsulate.ignite.metric_lambda import GradientMetricsLambda
+        return GradientMetricsLambda(lambda x, y: x + y, other, self)
 
     def __sub__(self, other):
-        from ignite.metrics import MetricsLambda
-        return MetricsLambda(lambda x, y: x - y, self, other)
+        from pyinsulate.ignite.metric_lambda import GradientMetricsLambda
+        return GradientMetricsLambda(lambda x, y: x - y, self, other)
 
     def __rsub__(self, other):
-        from ignite.metrics import MetricsLambda
-        return MetricsLambda(lambda x, y: x - y, other, self)
+        from pyinsulate.ignite.metric_lambda import GradientMetricsLambda
+        return GradientMetricsLambda(lambda x, y: x - y, other, self)
 
     def __mul__(self, other):
-        from ignite.metrics import MetricsLambda
-        return MetricsLambda(lambda x, y: x * y, self, other)
+        from pyinsulate.ignite.metric_lambda import GradientMetricsLambda
+        return GradientMetricsLambda(lambda x, y: x * y, self, other)
 
     def __rmul__(self, other):
-        from ignite.metrics import MetricsLambda
-        return MetricsLambda(lambda x, y: x * y, other, self)
+        from pyinsulate.ignite.metric_lambda import GradientMetricsLambda
+        return GradientMetricsLambda(lambda x, y: x * y, other, self)
 
     def __pow__(self, other):
-        from ignite.metrics import MetricsLambda
-        return MetricsLambda(lambda x, y: x ** y, self, other)
+        from pyinsulate.ignite.metric_lambda import GradientMetricsLambda
+        return GradientMetricsLambda(lambda x, y: x ** y, self, other)
 
     def __rpow__(self, other):
-        from ignite.metrics import MetricsLambda
-        return MetricsLambda(lambda x, y: x ** y, other, self)
+        from pyinsulate.ignite.metric_lambda import GradientMetricsLambda
+        return GradientMetricsLambda(lambda x, y: x ** y, other, self)
 
     def __mod__(self, other):
-        from ignite.metrics import MetricsLambda
-        return MetricsLambda(lambda x, y: x % y, self, other)
+        from pyinsulate.ignite.metric_lambda import GradientMetricsLambda
+        return GradientMetricsLambda(lambda x, y: x % y, self, other)
 
     def __div__(self, other):
-        from ignite.metrics import MetricsLambda
-        return MetricsLambda(lambda x, y: x.__div__(y), self, other)
+        from pyinsulate.ignite.metric_lambda import GradientMetricsLambda
+        return GradientMetricsLambda(lambda x, y: x.__div__(y), self, other)
 
     def __rdiv__(self, other):
-        from ignite.metrics import MetricsLambda
-        return MetricsLambda(lambda x, y: x.__div__(y), other, self)
+        from pyinsulate.ignite.metric_lambda import GradientMetricsLambda
+        return GradientMetricsLambda(lambda x, y: x.__div__(y), other, self)
 
     def __truediv__(self, other):
-        from ignite.metrics import MetricsLambda
-        return MetricsLambda(lambda x, y: x.__truediv__(y), self, other)
+        from pyinsulate.ignite.metric_lambda import GradientMetricsLambda
+        return GradientMetricsLambda(lambda x, y: x.__truediv__(y), self, other)
 
     def __rtruediv__(self, other):
-        from ignite.metrics import MetricsLambda
-        return MetricsLambda(lambda x, y: x.__truediv__(y), other, self)
+        from pyinsulate.ignite.metric_lambda import GradientMetricsLambda
+        return GradientMetricsLambda(lambda x, y: x.__truediv__(y), other, self)
 
     def __floordiv__(self, other):
-        from ignite.metrics import MetricsLambda
-        return MetricsLambda(lambda x, y: x // y, self, other)
+        from pyinsulate.ignite.metric_lambda import GradientMetricsLambda
+        return GradientMetricsLambda(lambda x, y: x // y, self, other)
 
     def __getattr__(self, attr):
         from ignite.metrics import MetricsLambda
@@ -149,5 +149,5 @@ class GradientMetric(with_metaclass(ABCMeta, object)):
         return wrapper
 
     def __getitem__(self, index):
-        from ignite.metrics import MetricsLambda
-        return MetricsLambda(lambda x: x[index], self)
+        from pyinsulate.ignite.metric_lambda import GradientMetricsLambda
+        return GradientMetricsLambda(lambda x: x[index], self)

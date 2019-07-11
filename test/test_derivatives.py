@@ -53,7 +53,7 @@ def test_jacobian():
     # Confirm agreement in complex case  --
 
     # Unbatched
-    rand_lengths = np.random.randint(1, 10, 5)
+    rand_lengths = np.random.randint(1, 7, 5)
     ins = torch.rand(tuple(list(rand_lengths)), requires_grad=True)
 
     out = torch.relu(ins)
