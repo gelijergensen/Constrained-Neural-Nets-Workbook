@@ -3,7 +3,7 @@ from multiprocessing import cpu_count, current_process
 import numpy as np
 import os
 from simple_turbulence import run_analysis, load_data, create_dataloaders
-from utilities.hyperthreading import perform_multiprocessed
+from ..utilities.hyperthreading import perform_multiprocessed
 import torch
 from torch import nn
 
