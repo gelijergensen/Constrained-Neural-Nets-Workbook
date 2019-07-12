@@ -17,4 +17,4 @@ def test_helmholtz_equation():
     out = torch.sin(k * xb)
     value = pde(out, xb, k=k)
 
-    assert(torch.allclose(torch.mean(torch.abs(value)), torch.tensor(0.)))
+    assert(torch.allclose(torch.mean(torch.abs(value)), torch.tensor(0.), atol=1e-7))
