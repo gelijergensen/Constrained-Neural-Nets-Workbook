@@ -1,4 +1,4 @@
-"""Implementation of particular PDEs"""
+"""Implementation of particular turbulence PDEs"""
 
 import torch
 
@@ -8,7 +8,7 @@ __all__ = ["steady_state_turbulence"]
 
 
 def steady_state_turbulence(outputs, inputs, nu=0.01):
-    """Computes the steady-state turbulence PDE magnitude, given that the model
+    """Computes the steady-state turbulence PDE value, given that the model
     has inputs x,y,z and outputs v_x, v_y, v_z"""
 
     batched = len(inputs.size()) > 1

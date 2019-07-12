@@ -1,6 +1,6 @@
 import os
 
-from torch import nn
+import torch.nn as nn
 
 from ..B_simple_turbulence.simple_turbulence import run_analysis, load_data
 
