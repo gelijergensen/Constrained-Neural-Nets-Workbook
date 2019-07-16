@@ -27,7 +27,7 @@ def _constrain_loss(loss, constraints, parameters, warn=True, allow_unused=False
 
     :throws: RuntimeError if the jacobian of the constraints are not full rank
     """
-    # The main function which we are computing is (loss + constraints . lambda)
+    # The main function which we are computing is (loss + constraints . weights)
     # lambda = $(J_g(x) J_g^T(x))^{-1}(g(x) - J_g(x) J_f^T(x)),
     #   where f is the loss and g is the constraints vector
 
@@ -46,9 +46,10 @@ def _constrain_loss(loss, constraints, parameters, warn=True, allow_unused=False
                       dim=-1)
     jac_fT = jac_f.unsqueeze(-1)
     if batched:
-        jacobian_metric = torch.einsum('bij,bkj->bik', jac_g, jac_g)
+        # gram matrix of constraint jacobian
+        gram_matrix = torch.einsum('bij,bkj->bik', jac_g, jac_g)
         try:
-            inverse = jacobian_metric.inverse()
+            gram_inverse = gram_matrix.inverse()
         except RuntimeError as rte:
             if warn:
                 print("Error occurred while computing constrained loss:")
@@ -58,17 +59,17 @@ def _constrain_loss(loss, constraints, parameters, warn=True, allow_unused=False
                       " pseudoinverse")
                 if warn == "error":
                     raise rte
-            inverse = jacobian_metric.pinverse()
-        lambda_pre_inverse = torch.baddbmm(
+            gram_inverse = gram_matrix.pinverse()
+        untransformed_weights = torch.baddbmm(
             constraints.unsqueeze(-1), jac_g, jac_fT, alpha=-1)
         # batched version of g . INV * PRE_INV
         weighted_sum = torch.einsum(
-            'bi,bij,bjk->b', constraints, inverse, lambda_pre_inverse)
+            'bi,bij,bjk->b', constraints, gram_inverse, untransformed_weights)
 
     else:
-        jacobian_metric = torch.einsum('ij,kj->ik', jac_g, jac_g)
+        gram_matrix = torch.einsum('ij,kj->ik', jac_g, jac_g)
         try:
-            inverse = jacobian_metric.inverse()
+            gram_inverse = gram_matrix.inverse()
         except RuntimeError as rte:
             if warn:
                 print("Error occurred while computing constrained loss:")
@@ -78,11 +79,11 @@ def _constrain_loss(loss, constraints, parameters, warn=True, allow_unused=False
                       " pseudoinverse")
                 if warn == "error":
                     raise rte
-            inverse = jacobian_metric.pinverse()
-        lambda_pre_inverse = torch.addmm(
+            gram_inverse = gram_matrix.pinverse()
+        untransformed_weights = torch.addmm(
             constraints.unsqueeze(-1), jac_g, jac_fT, alpha=-1)
         # unbatched version of g . INV * PRE_INV
         weighted_sum = torch.einsum(
-            'i,ij,jk->', constraints, inverse, lambda_pre_inverse)
+            'i,ij,jk->', constraints, gram_inverse, untransformed_weights)
 
     return loss + weighted_sum
