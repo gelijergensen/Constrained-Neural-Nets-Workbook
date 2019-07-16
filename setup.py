@@ -6,8 +6,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 PACKAGE_NAMES = ['pyinsulate']
-KEYWORDS = [
-    'predictor importance', 'variable importance', 'model evaluation']
+KEYWORDS = []
 SHORT_DESCRIPTION = (
     'Tools for the training of networks with hard constraints in PyTorch')
 
