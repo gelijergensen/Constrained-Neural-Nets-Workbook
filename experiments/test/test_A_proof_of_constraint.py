@@ -2,7 +2,7 @@ import os
 
 import torch.nn as nn
 
-from ..A_proof_of_constraint.proof_of_constraint import run_experiment
+from ..A_proof_of_constraint.main import run_experiment
 
 
 def test_proof_of_constraint():

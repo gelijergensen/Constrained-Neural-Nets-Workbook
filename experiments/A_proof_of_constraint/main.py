@@ -15,13 +15,15 @@ from pyinsulate.losses.pdes import helmholtz_equation
 from .dataloader import get_singlewave_dataloaders
 from .model import Dense
 
+__all__ = ["run_experiment"]
+
 
 def prepare_batch(batch, device=None, non_blocking=False):
     """Prepare batch for training: pass to a device with options."""
     return tuple(convert_tensor(x, device=device, non_blocking=non_blocking) for x in batch)
 
 
-def create_trainer(model, optimizer, loss_fn, constraint_fn, **constraint_kwargs):
+def create_trainer(model, optimizer, loss_fn, constraint_fn, metrics=None, **constraint_kwargs):
 
     def _update(engine, batch):
         model.train()
@@ -45,9 +47,16 @@ def create_trainer(model, optimizer, loss_fn, constraint_fn, **constraint_kwargs
 
         engine.state.constraints = constraints
         engine.state.loss = loss
-        return constrained_loss.item()
+        engine.state.constrained_loss = constrained_loss
+        return xb, yb, out
 
-    return Engine(_update)
+    engine = Engine(_update)
+
+    if metrics is not None:
+        for name, metric in metrics.items():
+            metric.attach(engine, name)
+
+    return engine
 
 
 def create_evaluator(model, metrics):
@@ -112,25 +121,46 @@ def mean_absolute_value_decorator(fn):
     """Take mean of abs along batch dimension"""
     @functools.wraps(fn)
     def decorated(*args, **kwargs):
-        return torch.mean(torch.abs(fn(*args, **kwargs)), dim=0)
+        return fn(*args, **kwargs)
+        # return torch.mean(torch.abs(fn(*args, **kwargs)), dim=0)
     return decorated
 
 
-def run_experiment(max_epochs, logging=False, **configuration):
+def run_experiment(max_epochs, log=None, training_monitor=None, evaluation_train_monitor=None, evaluation_test_monitor=None, evaluate_training=True, evaluate_testing=True, **configuration):
     """Runs the Proof of Constraint experiment with the given configuration
 
     :param max_epochs: number of epochs to run the experiment
-    :param logging: whether to log to the terminal
-    :param configuration: kwargs for various settings. See get_configuration
+    :param log: function to use for logging. None supresses logging
+    :param training_monitor: function to use for monitoring during training. 
+        Should be of the form trainer -> void. Will be called every epoch end
+    :param evaluation_train_monitor: same as training_monitor, but for 
+        evaluation on the training data
+    :param evaluation_test_monitor: same as training_monitor, but for 
+        evaluation on the testing data
+    :param evaluate_training: whether to run the evaluator once over the 
+        training data at the end of an epoch. Will be overridden if 
+        evaluation_train_monitor is provided
+    :param evaluate_testing: whether to run the evaluator once over the 
+        testing data at the end of an epoch. Will be overridden if
+        evaluation_test_monitor is provided
+    :param configuration: kwargs for various settings. See default_configuration
         for more details
     """
+    evaluate_training &= evaluation_train_monitor is not None
+    evaluate_testing &= evaluation_test_monitor is not None
+
     kwargs = default_configuration()
     kwargs.update(configuration)
 
-    train_dl, test_dl = get_singlewave_dataloaders(
+    should_log = log is not None
+
+    if should_log:
+        log(kwargs)
+
+    train_dl, test_dl, equation = get_singlewave_dataloaders(
         frequency=kwargs['frequency'], phase=kwargs['phase'], amplitude=kwargs['amplitude'],
         num_points=kwargs['num_points'], num_training=kwargs['num_training'], sampling=kwargs['training_sampling'],
-        batch_size=kwargs['batch_size']
+        batch_size=kwargs['batch_size'], return_equation=True
     )
 
     model = Dense(1, 1, sizes=kwargs['model_size'],
@@ -141,32 +171,62 @@ def run_experiment(max_epochs, logging=False, **configuration):
     constraint = abs_value_decorator(helmholtz_equation)
 
     trainer = create_trainer(
-        model, opt, loss, constraint, k=kwargs['frequency'])
-    evaluator = create_evaluator(model, metrics={
-        'mse':  GradientLoss(loss, output_transform=lambda args: (args[2], args[1])),
-        'constraint':
+        model, opt, loss, constraint, k=kwargs['frequency']
+    )
+
+    if evaluate_training:
+        train_evaluator = create_evaluator(model, metrics={
+            'loss':  GradientLoss(loss, output_transform=lambda args: (args[2], args[1])),
+            'constraint':
             GradientConstraint(
                 constraint,
                 output_transform=lambda args: (
                     args[2], args[0], {'k': kwargs['frequency']})
-        )
-    })
+            )
+        })
+    if evaluate_testing:
+        test_evaluator = create_evaluator(model, metrics={
+            'loss':  GradientLoss(loss, output_transform=lambda args: (args[2], args[1])),
+            'constraint':
+            GradientConstraint(
+                constraint,
+                output_transform=lambda args: (
+                    args[2], args[0], {'k': kwargs['frequency']})
+            )
+        })
 
     @trainer.on(Events.EPOCH_COMPLETED)
-    def log_training_loss(trainer):
-        evaluator.run(test_dl)
-        if logging:
-            metrics = evaluator.state.metrics
-            summary = ""
-            for key in metrics:
-                summary += f"{key}: {metrics[key]}\t"
-            print(summary)
+    def run_evaluation(trainer):
+        if training_monitor is not None:
+            training_monitor(trainer)
 
-    if logging:
+        if evaluate_training:
+            train_evaluator.run(test_dl)
+            if should_log:
+                metrics = train_evaluator.state.metrics
+                summary = f"Epoch[{trainer.state.epoch}] Training Summary - "
+                for key in metrics:
+                    summary += f"{key}: {metrics[key]}\t"
+                log(summary)
+            if evaluation_train_monitor is not None:
+                evaluation_train_monitor(train_evaluator)
+
+        if evaluate_testing:
+            test_evaluator.run(test_dl)
+            if should_log:
+                metrics = test_evaluator.state.metrics
+                summary = f"Epoch[{trainer.state.epoch}] Testing Summary - "
+                for key in metrics:
+                    summary += f"{key}: {metrics[key]}\t"
+                log(summary)
+            if evaluation_test_monitor is not None:
+                evaluation_test_monitor(test_evaluator)
+
+    if should_log:
         @trainer.on(Events.ITERATION_COMPLETED)
-        def log_training_loss(trainer):
-            print("Epoch[{}] - Constrained loss: {:.5f}, Loss: {:.5f}, Constraint: {}".format(
-                trainer.state.epoch, trainer.state.output, trainer.state.loss, trainer.state.constraints))
+        def log_batch_summary(trainer):
+            log("Epoch[{}] - Constrained loss: {:.5f}, Loss: {:.5f}".format(
+                trainer.state.epoch, trainer.state.constrained_loss, trainer.state.loss))
 
     trainer.run(train_dl, max_epochs=max_epochs)
-    return (evaluator.state.metrics['mse'], evaluator.state.metrics['constraint'])
+    return train_dl, test_dl, equation
