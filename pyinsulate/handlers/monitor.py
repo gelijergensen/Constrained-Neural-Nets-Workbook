@@ -8,15 +8,38 @@ class Monitor(object):
     and get() methods."""
 
     def __init__(self):
-        pass  # Nothing needs to happen here for the base class
+        self._should_key_average = dict()
+        self._counts = dict()
 
     def __call__(self, engine):
         raise NotImplementedError
 
+    def add(self, key, average=False):
+        if hasattr(self, key):
+            print(f"Warning! Monitor already has key {key}")
+        self._should_key_average[key] = average
+        if average:
+            setattr(self, key, None)
+            self._counts[key] = 0
+        else:
+            setattr(self, key, list())
+
     def set(self, key, value):
         if not hasattr(self, key):
-            setattr(self, key, list())
-        getattr(self, key).append(value)
+            raise AttributeError(
+                f"Error! Monitor cannot set nonexistent attribute {key}"
+            )
+        if self._should_key_average[key]:
+            if self._counts[key] == 0:
+                setattr(self, key, value)
+            else:
+                old_value = self.get(key)
+                new_value = (old_value * self._counts[key] + value) / \
+                    (self._counts[key] + 1)
+                setattr(self, key, new_value)
+            self._counts[key] += 1
+        else:
+            getattr(self, key).append(value)
 
     def get(self, key):
         return getattr(self, key)
