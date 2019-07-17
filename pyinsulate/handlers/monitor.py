@@ -1,28 +1,42 @@
 """A handler which stores objects from an engine which are to be watched"""
 
+from ignite.engine import Events
+
 
 class Monitor(object):
-    """Monitors are run once at the end of an epoch and can be used to retrieve
-    objects from the engine. Here we simply provide the tools for setting a new
+    """Monitors tally objects per iteration and per epoch. They either record
+    all instances of a value during the epoch or the average instance of the
+    value during the epoch. Here we simply provide the tools for setting a new
     value onto the Monitor and for the retrieval of those values with the set()
     and get() methods."""
 
     def __init__(self):
+        self._all_keys = list()
         self._should_key_average = dict()
         self._counts = dict()
 
     def __call__(self, engine):
         raise NotImplementedError
 
+    def attach(self, engine):
+        engine.add_event_handler(Events.EPOCH_STARTED, self.new_epoch)
+        engine.add_event_handler(Events.ITERATION_COMPLETED, self.__call__)
+
+    def new_epoch(self, engine):
+        for key in self._all_keys:
+            if self._should_key_average[key]:
+                self._counts[key] = 0
+                getattr(self, key).append(None)
+            else:
+                getattr(self, key).append(list())
+
     def add(self, key, average=False):
         if hasattr(self, key):
             print(f"Warning! Monitor already has key {key}")
-        self._should_key_average[key] = average
-        if average:
-            setattr(self, key, None)
-            self._counts[key] = 0
         else:
-            setattr(self, key, list())
+            self._all_keys.append(key)
+        setattr(self, key, list())
+        self._should_key_average[key] = average
 
     def set(self, key, value):
         if not hasattr(self, key):
@@ -31,15 +45,18 @@ class Monitor(object):
             )
         if self._should_key_average[key]:
             if self._counts[key] == 0:
-                setattr(self, key, value)
+                getattr(self, key)[-1] = value
             else:
-                old_value = self.get(key)
+                old_value = self.get(key, -1)
                 new_value = (old_value * self._counts[key] + value) / \
                     (self._counts[key] + 1)
-                setattr(self, key, new_value)
+                getattr(self, key)[-1] = new_value
             self._counts[key] += 1
         else:
-            getattr(self, key).append(value)
+            getattr(self, key)[-1].append(value)
 
-    def get(self, key):
-        return getattr(self, key)
+    def get(self, key, idxs=None):
+        if idxs is None:
+            return getattr(self, key)
+        else:
+            return getattr(self, key)[idxs]

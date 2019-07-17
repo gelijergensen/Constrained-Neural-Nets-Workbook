@@ -40,11 +40,11 @@ def test_monitor():
     trainer = create_supervised_trainer(model, opt, loss_fn)
 
     epoch_logger = EpochMonitor()
+    epoch_logger.attach(trainer)
 
-    trainer.add_event_handler(Events.EPOCH_COMPLETED, epoch_logger)
-
-    num_epochs = 2
+    num_epochs = 1
     trainer.run(train_dl, max_epochs=num_epochs)
     assert(len(epoch_logger.epoch) == num_epochs)
-    assert([epoch_logger.epoch[i] == i+1 for i in range(num_epochs)])
-    assert(epoch_logger.avg_epoch == float(num_epochs+1) / 2.0)
+    assert(all([all(epoch == i+1 for epoch in epoch_logger.epoch[i])
+                for i in range(num_epochs)]))
+    assert(all(epoch == i+1 for i, epoch in enumerate(epoch_logger.avg_epoch)))
