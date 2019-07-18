@@ -2,7 +2,6 @@ from datetime import datetime
 import torch
 
 from A_proof_of_constraint.main import run_experiment
-from A_proof_of_constraint.monitor import TrainingMonitor, EvaluationMonitor
 
 
 def get_savefile():
@@ -25,13 +24,8 @@ if __name__ == "__main__":
     savefile = get_savefile()
     print(f"Running proof of constraint with savefile {savefile}")
 
-    train_monitor = TrainingMonitor()
-    train_eval_monitor = EvaluationMonitor()
-    test_eval_monitor = EvaluationMonitor()
     final_result = run_experiment(
-        1, log=print, training_monitor=train_monitor,
-        evaluation_train_monitor=train_eval_monitor,
-        evaluation_test_monitor=test_eval_monitor,
+        1, log=print,
         **{
             'training_sampling': "uniform",
             'num_points': 100,
@@ -41,14 +35,13 @@ if __name__ == "__main__":
             'learning_rate': 1e-2,
         })
 
-    train_dl, test_dl, equation = final_result
+    configuration, (training_monitor, evaluation_train_monitor,
+                    evaluation_test_monitor) = final_result
 
     save_out({
-        'training_monitor': train_monitor,
-        'evaluation_train_monitor': train_eval_monitor,
-        'evaluation_test_monitor': test_eval_monitor,
-        'train_dl': train_dl,
-        'test_dl': test_dl,
-        'equation': equation
+        'configuration': configuration,
+        'training_monitor': training_monitor,
+        'evaluation_train_monitor': evaluation_train_monitor,
+        'evaluation_test_monitor': evaluation_test_monitor,
     }, savefile=savefile)
     print('Done!')

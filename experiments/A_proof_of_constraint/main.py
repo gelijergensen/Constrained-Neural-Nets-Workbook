@@ -2,78 +2,37 @@
 methods and draw comparisons"""
 
 import functools
-from ignite.engine import Engine, Events
-from ignite.utils import convert_tensor
+from ignite.engine import Events
 import torch
 import torch.nn as nn
 import torch.optim as optim
 
 from pyinsulate.ignite import GradientConstraint, GradientLoss
-from pyinsulate.lagrange.exact import constrain_loss
 from pyinsulate.losses.pdes import helmholtz_equation
 
 from .dataloader import get_singlewave_dataloaders
+from .event_loop import create_engine, Sub_Batch_Events
 from .model import Dense
-
-__all__ = ["run_experiment"]
-
-
-def prepare_batch(batch, device=None, non_blocking=False):
-    """Prepare batch for training: pass to a device with options."""
-    return tuple(convert_tensor(x, device=device, non_blocking=non_blocking) for x in batch)
+from .monitor import ProofOfConstraintMonitor
 
 
-def create_trainer(model, optimizer, loss_fn, constraint_fn, metrics=None, **constraint_kwargs):
-
-    def _update(engine, batch):
-        model.train()
-        optimizer.zero_grad()
-        xb, yb = prepare_batch(batch)
-        out = model(xb)
-        last = getattr(engine.state, "last", None)
-        if last is not None and len(out) == len(last) and torch.allclose(out, last):
-            print("WARNING! Just outputting same thing!")
-        engine.state.last = out
-        if torch.allclose(out, out.new_zeros(out.size())):
-            print("WARNING! Training is failing")
-
-        loss = loss_fn(out, yb)
-        constraints = constraint_fn(out, xb, **constraint_kwargs)
-
-        constrained_loss = constrain_loss(
-            loss, constraints, list(model.parameters()))
-        constrained_loss.backward()
-        optimizer.step()
-
-        engine.state.constraints = constraints
-        engine.state.loss = loss
-        engine.state.constrained_loss = constrained_loss
-        return xb, yb, out
-
-    engine = Engine(_update)
-
-    if metrics is not None:
-        for name, metric in metrics.items():
-            metric.attach(engine, name)
-
-    return engine
+__all__ = ["run_experiment", "default_configuration"]
 
 
-def create_evaluator(model, metrics):
+def abs_value_decorator(fn):
+    @functools.wraps(fn)
+    def decorated(*args, **kwargs):
+        return torch.abs(fn(*args, **kwargs))
+    return decorated
 
-    def _inference(engine, batch):
-        model.eval()
-        with torch.enable_grad():  # we need the gradient for the metrics
-            xb, yb = prepare_batch(batch)
-            out = model(xb)
-        return xb, yb, out
 
-    engine = Engine(_inference)
-
-    for name, metric in metrics.items():
-        metric.attach(engine, name)
-
-    return engine
+def mean_absolute_value_decorator(fn):
+    """Take mean of abs along batch dimension"""
+    @functools.wraps(fn)
+    def decorated(*args, **kwargs):
+        return fn(*args, **kwargs)
+        # return torch.mean(torch.abs(fn(*args, **kwargs)), dim=0)
+    return decorated
 
 
 def default_configuration():
@@ -110,33 +69,11 @@ def default_configuration():
     }
 
 
-def abs_value_decorator(fn):
-    @functools.wraps(fn)
-    def decorated(*args, **kwargs):
-        return torch.abs(fn(*args, **kwargs))
-    return decorated
-
-
-def mean_absolute_value_decorator(fn):
-    """Take mean of abs along batch dimension"""
-    @functools.wraps(fn)
-    def decorated(*args, **kwargs):
-        return fn(*args, **kwargs)
-        # return torch.mean(torch.abs(fn(*args, **kwargs)), dim=0)
-    return decorated
-
-
-def run_experiment(max_epochs, log=None, training_monitor=None, evaluation_train_monitor=None, evaluation_test_monitor=None, evaluate_training=True, evaluate_testing=True, **configuration):
+def run_experiment(max_epochs, log=None, evaluate_training=True, evaluate_testing=True, **configuration):
     """Runs the Proof of Constraint experiment with the given configuration
 
     :param max_epochs: number of epochs to run the experiment
     :param log: function to use for logging. None supresses logging
-    :param training_monitor: function to use for monitoring during training. 
-        Should be of the form trainer -> void. Will be called every epoch end
-    :param evaluation_train_monitor: same as training_monitor, but for 
-        evaluation on the training data
-    :param evaluation_test_monitor: same as training_monitor, but for 
-        evaluation on the testing data
     :param evaluate_training: whether to run the evaluator once over the 
         training data at the end of an epoch. Will be overridden if 
         evaluation_train_monitor is provided
@@ -146,23 +83,26 @@ def run_experiment(max_epochs, log=None, training_monitor=None, evaluation_train
     :param configuration: kwargs for various settings. See default_configuration
         for more details
     """
-    evaluate_training &= evaluation_train_monitor is not None
-    evaluate_testing &= evaluation_test_monitor is not None
-
-    kwargs = default_configuration()
-    kwargs.update(configuration)
-
+    # Setup Monitors
+    training_monitor = ProofOfConstraintMonitor()
+    evaluation_train_monitor = ProofOfConstraintMonitor() if evaluate_training else None
+    evaluation_test_monitor = ProofOfConstraintMonitor() if evaluate_testing else None
     should_log = log is not None
 
+    # Determine the parameters of the analysis
+    kwargs = default_configuration()
+    kwargs.update(configuration)
     if should_log:
         log(kwargs)
 
-    train_dl, test_dl, equation = get_singlewave_dataloaders(
+    # Get the data
+    train_dl, test_dl = get_singlewave_dataloaders(
         frequency=kwargs['frequency'], phase=kwargs['phase'], amplitude=kwargs['amplitude'],
         num_points=kwargs['num_points'], num_training=kwargs['num_training'], sampling=kwargs['training_sampling'],
-        batch_size=kwargs['batch_size'], return_equation=True
+        batch_size=kwargs['batch_size'],
     )
 
+    # Build the model, optimizer, loss, and constraint
     model = Dense(1, 1, sizes=kwargs['model_size'],
                   activation=kwargs['model_act'],
                   final_activation=kwargs['model_final_act'])
@@ -170,31 +110,37 @@ def run_experiment(max_epochs, log=None, training_monitor=None, evaluation_train
     loss = nn.MSELoss()
     constraint = abs_value_decorator(helmholtz_equation)
 
-    trainer = create_trainer(
-        model, opt, loss, constraint, k=kwargs['frequency']
+    # Setup the metrics to be observed during training and evaluations
+
+    def get_metrics():
+        # This is done this way to ensure we construct different tensor functions,
+        # which is important because otherwise the computation graphs can be deleted
+        return {
+            # 'loss':  GradientLoss(loss, output_transform=lambda args: (args[2], args[1])),
+            # 'constraint':
+            # GradientConstraint(
+            #     constraint,
+            #     output_transform=lambda args: (
+            #         args[2], args[0], {'k': kwargs['frequency']})
+            # )
+        }
+
+    # This is the trainer because we provide the optimizer
+    trainer = create_engine(
+        model, loss, constraint, opt, metrics=get_metrics(), monitor=training_monitor, k=kwargs['frequency']
     )
 
+    # These are not trainers because we don't provide the optimizer
     if evaluate_training:
-        train_evaluator = create_evaluator(model, metrics={
-            'loss':  GradientLoss(loss, output_transform=lambda args: (args[2], args[1])),
-            'constraint':
-            GradientConstraint(
-                constraint,
-                output_transform=lambda args: (
-                    args[2], args[0], {'k': kwargs['frequency']})
-            )
-        })
+        train_evaluator = create_engine(
+            model, loss, constraint, metrics=get_metrics(), monitor=evaluation_train_monitor, k=kwargs['frequency']
+        )
     if evaluate_testing:
-        test_evaluator = create_evaluator(model, metrics={
-            'loss':  GradientLoss(loss, output_transform=lambda args: (args[2], args[1])),
-            'constraint':
-            GradientConstraint(
-                constraint,
-                output_transform=lambda args: (
-                    args[2], args[0], {'k': kwargs['frequency']})
-            )
-        })
+        test_evaluator = create_engine(
+            model, loss, constraint, metrics=get_metrics(), monitor=evaluation_test_monitor, k=kwargs['frequency']
+        )
 
+    # Ensure evaluation happens once per epoch
     @trainer.on(Events.EPOCH_COMPLETED)
     def run_evaluation(trainer):
         if training_monitor is not None:
@@ -229,4 +175,4 @@ def run_experiment(max_epochs, log=None, training_monitor=None, evaluation_train
                 trainer.state.epoch, trainer.state.constrained_loss, trainer.state.loss))
 
     trainer.run(train_dl, max_epochs=max_epochs)
-    return train_dl, test_dl, equation
+    return kwargs, (training_monitor, evaluation_train_monitor, evaluation_test_monitor)
