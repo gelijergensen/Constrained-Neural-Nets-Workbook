@@ -25,13 +25,13 @@ if __name__ == "__main__":
     print(f"Running proof of constraint with savefile {savefile}")
 
     final_result = run_experiment(
-        1, log=print,
+        10, log=print,
         **{
             'training_sampling': "uniform",
-            'num_points': 100,
-            'num_training': 10,
-            'batch_size': 10,
-            'model_size': [20, 20, 20],
+            'num_points': 1000,
+            'num_training': 100,
+            'batch_size': 50,
+            'model_size': [50],
             'learning_rate': 1e-2,
         })
 
