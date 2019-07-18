@@ -48,3 +48,5 @@ def test_monitor():
     assert(all([all(epoch == i+1 for epoch in epoch_logger.epoch[i])
                 for i in range(num_epochs)]))
     assert(all(epoch == i+1 for i, epoch in enumerate(epoch_logger.avg_epoch)))
+    assert(len(list(iter(epoch_logger))) == 2)
+    assert(next(iter(epoch_logger)) == 'epoch')
