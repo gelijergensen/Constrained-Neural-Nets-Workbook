@@ -116,7 +116,7 @@ def run_experiment(max_epochs, log=None, evaluate_training=True, evaluate_testin
         # This is done this way to ensure we construct different tensor functions,
         # which is important because otherwise the computation graphs can be deleted
         return {
-            'loss':  GradientLoss(loss, output_transform=lambda args: (args[2], args[1])),
+            # 'loss':  GradientLoss(loss, output_transform=lambda args: (args[2], args[1])),
             # 'constraint':
             # GradientConstraint(
             #     constraint,
