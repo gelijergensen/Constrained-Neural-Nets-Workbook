@@ -60,3 +60,21 @@ class Monitor(object):
             return getattr(self, key)
         else:
             return getattr(self, key)[idxs]
+
+    def keys(self):
+        return iter(self._all_keys)
+
+    def values(self):
+        return iter(self.get(key) for key in self._all_keys)
+
+    def items(self):
+        return iter((key, self.get(key)) for key in self._all_keys)
+
+    def __iter__(self):
+        return self.keys()
+
+    def __str__(self):
+        return f"""{self.__class__.__name__}: {{{' '.join((f"'{key}'" for key in self._all_keys))}}}"""
+
+    def __repr__(self):
+        return f"{self.__class__}({repr(dict(self.items()))})"
