@@ -1,14 +1,12 @@
-"""Functions for exactly computing the optimal Lagrange multipliers and
-a reweighted loss tensor"""
+"""Functions for exactly computing the optimal Lagrange multipliers"""
 
 import torch
 
 from pyinsulate.derivatives import jacobian
 
 
-def constrain_loss(loss, constraints, parameters, warn=True):
-    """Reweights a given loss with the constraints by computing the optimal
-    lagrange multipliers
+def compute_multipliers(loss, constraints, parameters, warn=True):
+    """Computing the optimal Lagrange multipliers
 
     :param loss: tensor corresponding to the evalutated loss
     :param constraints: a single tensor corresponding to the evaluated
@@ -16,14 +14,14 @@ def constrain_loss(loss, constraints, parameters, warn=True):
     :param parameters: an iterable of the parameters to optimize
     :param warn: whether to warn if the constraints are ill-conditioned. If set
         to "error", then will throw a RuntimeError if this occurs
-    :returns: the new loss tensor after accounting for the constraints
+    :returns: the optimal Lagrange multipliers
     """
-    return _constrain_loss(loss, constraints, parameters, warn=warn, allow_unused=True)
+    return _compute_multipliers(loss, constraints, parameters, warn=warn, allow_unused=True)
 
 
-def _constrain_loss(loss, constraints, parameters, warn=True, allow_unused=False):
+def _compute_multipliers(loss, constraints, parameters, warn=True, allow_unused=False):
     """Assumes that the constraints are well-conditioned and computes the
-    constrained loss
+    optimal Lagrange multipliers
 
     :throws: RuntimeError if the jacobian of the constraints are not full rank
     """
@@ -62,9 +60,9 @@ def _constrain_loss(loss, constraints, parameters, warn=True, allow_unused=False
             gram_inverse = gram_matrix.pinverse()
         untransformed_weights = torch.baddbmm(
             constraints.unsqueeze(-1), jac_g, jac_fT, alpha=-1)
-        # batched version of g . INV * PRE_INV
-        weighted_sum = torch.einsum(
-            'bi,bij,bjk->b', constraints, gram_inverse, untransformed_weights)
+        # batched version of INV * PRE_INV
+        multipliers = torch.einsum(
+            'bij,bjk->bi', gram_inverse, untransformed_weights)
 
     else:
         gram_matrix = torch.einsum('ij,kj->ik', jac_g, jac_g)
@@ -82,8 +80,9 @@ def _constrain_loss(loss, constraints, parameters, warn=True, allow_unused=False
             gram_inverse = gram_matrix.pinverse()
         untransformed_weights = torch.addmm(
             constraints.unsqueeze(-1), jac_g, jac_fT, alpha=-1)
-        # unbatched version of g . INV * PRE_INV
-        weighted_sum = torch.einsum(
-            'i,ij,jk->', constraints, gram_inverse, untransformed_weights)
 
-    return loss + weighted_sum
+        # unbatched version of INV * PRE_INV
+        multipliers = torch.einsum(
+            'ij,jk->i', gram_inverse, untransformed_weights)
+
+    return multipliers

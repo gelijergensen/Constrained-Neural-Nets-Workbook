@@ -11,7 +11,7 @@ try:
 except ImportError:
     from time import time as perf_counter
 
-from pyinsulate.lagrange.exact import constrain_loss
+from pyinsulate.lagrange.exact import compute_multipliers
 
 __all__ = ["create_engine", "Sub_Batch_Events"]
 
@@ -44,7 +44,7 @@ def create_engine(model, loss_fn, constraint_fn, optimizer=None, metrics=None, m
         then the model weights are not updated
     :param metrics: an optional dictionary of (ignite / pyinsulate.ignite)
         metrics to attach to the engine
-    :param monitor: handler to be used for monitoring. Must have an 
+    :param monitor: handler to be used for monitoring. Must have an
         .attach(engine) method
     :param guard: whether to perform a check to ensure that the model is
         training
@@ -99,8 +99,16 @@ def create_engine(model, loss_fn, constraint_fn, optimizer=None, metrics=None, m
         section_start = end_section(
             engine, Sub_Batch_Events.CONSTRAINTS_COMPUTED, section_start)
         # TODO Eventually, we will want to upgrade this to be method specific
-        engine.state.constrained_loss = constrain_loss(
+        engine.state.multipliers = compute_multipliers(
             engine.state.loss, engine.state.constraints, list(model.parameters()))
+        # This computes either a batched or unbatched dot product
+        # FIXME This only works when there is 1 constraint because the loss is
+        # FIXME a single tensor and no longer batched
+        engine.state.constrained_loss = engine.state.loss + \
+            torch.einsum('...i,...i->...',
+                         engine.state.constraints,
+                         engine.state.multipliers
+                         )
 
         section_start = end_section(
             engine, Sub_Batch_Events.REWEIGHTED_LOSS_COMPUTED, section_start)
