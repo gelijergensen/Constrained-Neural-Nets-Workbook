@@ -70,6 +70,17 @@ def default_configuration():
     }
 
 
+def build_model_and_optimizer(configuration):
+    """Creates the model, optimizer, loss, and constraint"""
+    model = Dense(1, 1, sizes=configuration['model_size'],
+                  activation=configuration['model_act'],
+                  final_activation=configuration['model_final_act'])
+    opt = optim.Adam(model.parameters(), lr=configuration['learning_rate'])
+    loss = nn.MSELoss()
+    constraint = abs_value_decorator(helmholtz_equation)
+    return model, opt, loss, constraint
+
+
 def run_experiment(max_epochs, log=None, evaluate_training=True, evaluate_testing=True, save_directory=".", save_file=None, save_interval=1, **configuration):
     """Runs the Proof of Constraint experiment with the given configuration
 
@@ -122,12 +133,7 @@ def run_experiment(max_epochs, log=None, evaluate_training=True, evaluate_testin
     )
 
     # Build the model, optimizer, loss, and constraint
-    model = Dense(1, 1, sizes=kwargs['model_size'],
-                  activation=kwargs['model_act'],
-                  final_activation=kwargs['model_final_act'])
-    opt = optim.Adam(model.parameters(), lr=kwargs['learning_rate'])
-    loss = nn.MSELoss()
-    constraint = abs_value_decorator(helmholtz_equation)
+    model, opt, loss, constraint = build_model_and_optimizer(kwargs)
 
     # Setup the metrics to be observed during training and evaluations
 
