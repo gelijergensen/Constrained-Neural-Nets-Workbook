@@ -10,6 +10,7 @@ import torch.optim as optim
 from pyinsulate.ignite import GradientConstraint, GradientLoss
 from pyinsulate.losses.pdes import helmholtz_equation
 
+from .checkpointer import ModelAndMonitorCheckpointer
 from .dataloader import get_singlewave_dataloaders
 from .event_loop import create_engine, Sub_Batch_Events
 from .model import Dense
@@ -69,7 +70,7 @@ def default_configuration():
     }
 
 
-def run_experiment(max_epochs, log=None, evaluate_training=True, evaluate_testing=True, **configuration):
+def run_experiment(max_epochs, log=None, evaluate_training=True, evaluate_testing=True, save_directory=".", save_file=None, save_interval=1, **configuration):
     """Runs the Proof of Constraint experiment with the given configuration
 
     :param max_epochs: number of epochs to run the experiment
@@ -80,20 +81,38 @@ def run_experiment(max_epochs, log=None, evaluate_training=True, evaluate_testin
     :param evaluate_testing: whether to run the evaluator once over the 
         testing data at the end of an epoch. Will be overridden if
         evaluation_test_monitor is provided
+    :param save_directory: optional directory to save checkpoints into. Defaults
+        to the directory that the main script was called from
+    :param save_file: base filename for checkpointing. If not provided, then no
+        checkpointing will be performed
+    :param save_interval: frequency of saving out model checkpoints. Defaults to
+        every epoch
     :param configuration: kwargs for various settings. See default_configuration
         for more details
+    :returns: the configuration dictionary, a tuple of all engines (first will
+        be the training engine), and a corresponding tuple of all monitors
     """
-    # Setup Monitors
-    training_monitor = ProofOfConstraintMonitor()
-    evaluation_train_monitor = ProofOfConstraintMonitor() if evaluate_training else None
-    evaluation_test_monitor = ProofOfConstraintMonitor() if evaluate_testing else None
-    should_log = log is not None
 
     # Determine the parameters of the analysis
+    should_log = log is not None
+    should_checkpoint = save_file is not None
     kwargs = default_configuration()
     kwargs.update(configuration)
     if should_log:
         log(kwargs)
+
+    # Setup Monitors and Checkpoints
+    training_monitor = ProofOfConstraintMonitor()
+    evaluation_train_monitor = ProofOfConstraintMonitor() if evaluate_training else None
+    evaluation_test_monitor = ProofOfConstraintMonitor() if evaluate_testing else None
+    if should_checkpoint:
+        checkpointer = ModelAndMonitorCheckpointer(
+            save_directory, save_file, kwargs,
+            [training_monitor, evaluation_train_monitor, evaluation_test_monitor],
+            save_interval=save_interval
+        )
+    else:
+        checkpointer = None
 
     # Get the data
     train_dl, test_dl = get_singlewave_dataloaders(
@@ -135,10 +154,14 @@ def run_experiment(max_epochs, log=None, evaluate_training=True, evaluate_testin
         train_evaluator = create_engine(
             model, loss, constraint, metrics=get_metrics(), monitor=evaluation_train_monitor, k=kwargs['frequency']
         )
+    else:
+        train_evaluator = None
     if evaluate_testing:
         test_evaluator = create_engine(
             model, loss, constraint, metrics=get_metrics(), monitor=evaluation_test_monitor, k=kwargs['frequency']
         )
+    else:
+        test_evaluator = None
 
     # Ensure evaluation happens once per epoch
     @trainer.on(Events.EPOCH_COMPLETED)
@@ -168,6 +191,9 @@ def run_experiment(max_epochs, log=None, evaluate_training=True, evaluate_testin
             if evaluation_test_monitor is not None:
                 evaluation_test_monitor(test_evaluator)
 
+        if should_checkpoint:
+            checkpointer(trainer)
+
     if should_log:
         @trainer.on(Events.ITERATION_COMPLETED)
         def log_batch_summary(trainer):
@@ -175,4 +201,9 @@ def run_experiment(max_epochs, log=None, evaluate_training=True, evaluate_testin
                 trainer.state.epoch, trainer.state.constrained_loss, trainer.state.loss))
 
     trainer.run(train_dl, max_epochs=max_epochs)
-    return kwargs, (training_monitor, evaluation_train_monitor, evaluation_test_monitor)
+
+    # Save final model and monitors
+    if should_checkpoint:
+        checkpointer.retrieve_and_save(trainer)
+
+    return kwargs, (trainer, train_evaluator, test_evaluator), (training_monitor, evaluation_train_monitor, evaluation_test_monitor)

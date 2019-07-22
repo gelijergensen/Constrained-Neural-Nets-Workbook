@@ -1,6 +1,6 @@
 """Things to monitor during the training and evaluation phases"""
 
-from pyinsulate.handlers.monitor import Monitor
+from pyinsulate.handlers import Monitor
 
 from .event_loop import Sub_Batch_Events
 
