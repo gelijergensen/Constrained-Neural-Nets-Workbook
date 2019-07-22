@@ -115,6 +115,11 @@ def create_engine(model, loss_fn, constraint_fn, optimizer=None, metrics=None, m
         if optimizer is not None:
             engine.state.constrained_loss.backward()
             optimizer.step()
+        engine.state.model_state_dict = model.state_dict()
+        if optimizer is not None:
+            engine.state.optimizer_state_dict = optimizer.state_dict()
+        else:
+            engine.state.optimizer_state_dict = None
 
         section_start = end_section(
             engine, Sub_Batch_Events.OPTIMIZER_STEPPED, section_start)

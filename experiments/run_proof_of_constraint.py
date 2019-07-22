@@ -35,8 +35,9 @@ if __name__ == "__main__":
             'learning_rate': 1e-2,
         })
 
-    configuration, (training_monitor, evaluation_train_monitor,
-                    evaluation_test_monitor) = final_result
+    configuration, (trainer, train_evaluator, test_evaluator),
+    (training_monitor, evaluation_train_monitor,
+     evaluation_test_monitor) = final_result
 
     save_out({
         'configuration': configuration,

@@ -36,13 +36,16 @@ class Checkpointer(object):
     def retrieve(self, engine):
         raise NotImplementedError
 
+    def retrieve_and_save(self, engine):
+        obj = self.retrieve(engine)
+        filename = f"{self._filename_base}_{self._iteration}.pth"
+        path = os.path.join(self._dirname, filename)
+        self._save(obj, path)
+
     def __call__(self, engine):
         self._iteration += 1
         if (self._iteration % self.save_interval) == 0:
-            obj = self.retrieve(engine)
-            filename = f"{self._filename_base}_{self._iteration}.pth"
-            path = os.path.join(self._dirname, filename)
-            self._save(obj, path)
+            self.retrieve_and_save(engine)
 
     def _save(self, obj, path):
         tmp = tempfile.NamedTemporaryFile(delete=False, dir=self._dirname)
