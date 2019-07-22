@@ -26,4 +26,7 @@ results/
 *.out
 
 # Notebooks
-*/.ipynb_checkpoints
+.ipynb_checkpoints
+
+# Temporary submit scripts
+temp_*.sh
