@@ -23,7 +23,8 @@ CLASSIFIERS = [
     'Topic :: Scientific/Engineering :: Information Analysis'
 ]
 
-PACKAGE_REQUIREMENTS = ['numpy', 'torch', 'torchvision', 'ignite', 'matplotlib']
+PACKAGE_REQUIREMENTS = ['numpy', 'torch',
+                        'torchvision', 'pytorch-ignite', 'matplotlib']
 
 if __name__ == '__main__':
     setup(

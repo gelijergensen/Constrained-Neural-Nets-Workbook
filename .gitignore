@@ -11,6 +11,7 @@ dist/
 # vscode stuff
 .vscode/
 .pytest_cache/
+.cache
 
 # Local directories for some of the data
 .temp
@@ -23,3 +24,9 @@ results/
 
 # All slurm outputs
 *.out
+
+# Notebooks
+.ipynb_checkpoints
+
+# Temporary submit scripts
+temp_*.sh
