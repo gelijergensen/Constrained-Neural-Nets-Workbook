@@ -18,5 +18,4 @@ source env/bin/activate
 
 echo "Setting up repository"
 cd pyinsulate
-cp ~/Projects/pyinsulate/setup.py .
 pip install -e .
