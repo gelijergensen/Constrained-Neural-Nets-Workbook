@@ -12,15 +12,22 @@ class ProofOfConstraintMonitor(Monitor):
 
         self.add('epoch', average=True)
         self.add('loss', average=False)
+        self.add('mean_loss', average=False)
         self.add('batch_size', average=False)
         self.add('constraints', average=False)
         self.time_keys = ['total'] + [event.value for event in Sub_Batch_Events]
         for key in self.time_keys:
             self.add(key, average=True)
 
+    def new_epoch(self, engine):
+        super().new_epoch(engine)
+        last_epoch = self.get(
+            'epoch', -2) if len(self.get('epoch')) > 1 else 0
+        self.set('epoch', last_epoch + 1)
+
     def __call__(self, engine):
-        self.set('epoch', engine.state.epoch)
-        self.set('loss', engine.state.loss.item())
+        self.set('loss', engine.state.loss.to('cpu'))
+        self.set('mean_loss', engine.state.mean_loss.item())
         self.set('batch_size', len(engine.state.xb))
         self.set('constraints', engine.state.constraints.to('cpu'))
         for key in self.time_keys:

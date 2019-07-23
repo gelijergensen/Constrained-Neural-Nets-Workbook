@@ -89,7 +89,9 @@ def create_engine(model, loss_fn, constraint_fn, optimizer=None, metrics=None, m
 
         section_start = end_section(
             engine, Sub_Batch_Events.GUARD_COMPLETED, section_start)
+        # FIXME Figure out why things aren't converging correctly
         engine.state.loss = loss_fn(engine.state.out, engine.state.yb)
+        engine.state.mean_loss = torch.mean(engine.state.loss)
 
         section_start = end_section(
             engine, Sub_Batch_Events.LOSS_COMPUTED, section_start)
@@ -102,13 +104,13 @@ def create_engine(model, loss_fn, constraint_fn, optimizer=None, metrics=None, m
         engine.state.multipliers = compute_multipliers(
             engine.state.loss, engine.state.constraints, list(model.parameters()))
         # This computes either a batched or unbatched dot product
-        # FIXME This only works when there is 1 constraint because the loss is
-        # FIXME a single tensor and no longer batched
-        engine.state.constrained_loss = engine.state.loss + \
-            torch.einsum('...i,...i->...',
-                         engine.state.constraints,
-                         engine.state.multipliers
-                         )
+        # FIXME Figure out why things aren't converging correctly
+        engine.state.constrained_loss = torch.mean(
+            engine.state.loss + torch.einsum('...i,...i->...',
+                                             engine.state.constraints,
+                                             engine.state.multipliers
+                                             )
+        )
 
         section_start = end_section(
             engine, Sub_Batch_Events.REWEIGHTED_LOSS_COMPUTED, section_start)
