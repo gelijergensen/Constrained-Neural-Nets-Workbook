@@ -182,7 +182,7 @@ def run_experiment(max_epochs, log=None, evaluate_training=True, evaluate_testin
             training_monitor(trainer)
 
         if evaluate_training:
-            train_evaluator.run(test_dl)
+            train_evaluator.run(train_dl)
             if should_log:
                 metrics = train_evaluator.state.metrics
                 summary = f"Epoch[{trainer.state.epoch}] Training Summary - "
