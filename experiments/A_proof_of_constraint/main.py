@@ -76,7 +76,8 @@ def build_model_and_optimizer(configuration):
                   activation=configuration['model_act'],
                   final_activation=configuration['model_final_act'])
     opt = optim.Adam(model.parameters(), lr=configuration['learning_rate'])
-    loss = nn.MSELoss()
+    # We need the entire batch of losses, not it's sum
+    loss = nn.MSELoss(reduction='none')
     constraint = abs_value_decorator(helmholtz_equation)
     return model, opt, loss, constraint
 
@@ -204,7 +205,7 @@ def run_experiment(max_epochs, log=None, evaluate_training=True, evaluate_testin
         @trainer.on(Events.ITERATION_COMPLETED)
         def log_batch_summary(trainer):
             log("Epoch[{}] - Constrained loss: {:.5f}, Loss: {:.5f}".format(
-                trainer.state.epoch, trainer.state.constrained_loss, trainer.state.loss))
+                trainer.state.epoch, trainer.state.constrained_loss, trainer.state.mean_loss))
 
     trainer.run(train_dl, max_epochs=max_epochs)
 

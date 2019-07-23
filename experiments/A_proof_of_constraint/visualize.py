@@ -7,7 +7,11 @@ import torch
 
 def _clean_labels(labels):
     """Replaces all underscores with spaces and capitalizes first letter"""
-    return [label.replace("_", " ").capitalize() for label in labels]
+
+    corrected_labels = [
+        (label if label != "step_optimizer" else "backward_pass") for label in labels
+    ]
+    return [label.replace("_", " ").capitalize() for label in corrected_labels]
 
 
 def plot_loss(monitors, labels, savefile, title="Losses", ylabel="Average loss", directory="/global/u1/g/gelijerg/Projects/pyinsulate/results"):
@@ -26,11 +30,14 @@ def plot_loss(monitors, labels, savefile, title="Losses", ylabel="Average loss",
 
     all_mean_losses = np.zeros((len(epochs), len(labels)))
     for i, monitor in enumerate(monitors):
-        losses = monitor.loss
+        losses = monitor.mean_loss
         this_batch_size = monitor.batch_size
 
         all_mean_losses[:, i] = np.array([np.average(loss, weights=batch_size)
                                           for loss, batch_size in zip(losses, this_batch_size)])
+
+    print(epochs)
+    print(all_mean_losses)
 
     fig = plt.figure(figsize=(4, 3))
     plt.plot(epochs, all_mean_losses)
@@ -48,7 +55,7 @@ def plot_loss(monitors, labels, savefile, title="Losses", ylabel="Average loss",
     return fig
 
 
-def plot_constraints(monitors, labels, savefile, title="Contraint magnitude", ylabel="Average constraint magnitude", directory="/global/u1/g/gelijerg/Projects/pyinsulate/results"):
+def plot_constraints(monitors, labels, savefile, title="Constraint magnitude", ylabel="Average constraint magnitude", directory="/global/u1/g/gelijerg/Projects/pyinsulate/results"):
     """Plots the magnitude of the constraints
 
     :param monitors: a list of monitors, e.g. [training, evaluation]
