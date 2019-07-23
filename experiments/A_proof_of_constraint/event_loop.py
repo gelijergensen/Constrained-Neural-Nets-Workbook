@@ -11,7 +11,7 @@ try:
 except ImportError:
     from time import time as perf_counter
 
-from pyinsulate.lagrange.exact import compute_multipliers
+from pyinsulate.lagrange.exact import average_constrained_loss, batchwise_constrained_loss
 
 __all__ = ["create_engine", "Sub_Batch_Events"]
 
@@ -32,7 +32,7 @@ def prepare_batch(batch, device=None, non_blocking=False):
     return tuple(convert_tensor(x, device=device, non_blocking=non_blocking) for x in batch)
 
 
-def create_engine(model, loss_fn, constraint_fn, optimizer=None, metrics=None, monitor=None, guard=True, **constraint_kwargs):
+def create_engine(model, loss_fn, constraint_fn, optimizer=None, metrics=None, monitor=None, guard=True, method="unconstrained", **constraint_kwargs):
     """Creates an engine with the necessary components. If optimizer is not
     provided, then will run inference
 
@@ -48,6 +48,11 @@ def create_engine(model, loss_fn, constraint_fn, optimizer=None, metrics=None, m
         .attach(engine) method
     :param guard: whether to perform a check to ensure that the model is
         training
+    :param method: method to use for constraining. Should be one of
+        "average" - compute average (along batch) of constrained update
+        "batchwise" - compute constrained update of mean loss with respect to 
+            all constraints within the batch
+        "unconstrained" - don't constrain. Used as a control method
     :param constraint_kwargs: all other parameters will be passed along to the
         constraint function
     :returns: an ignite.engine.Engine whose output is (xb, yb, out) for every
@@ -71,13 +76,13 @@ def create_engine(model, loss_fn, constraint_fn, optimizer=None, metrics=None, m
             model.train()
             optimizer.zero_grad()
         engine.state.xb, engine.state.yb = prepare_batch(batch)
-
         section_start = end_section(
             engine, Sub_Batch_Events.DATA_LOADED, section_start)
-        engine.state.out = model(engine.state.xb)
 
+        engine.state.out = model(engine.state.xb)
         section_start = end_section(
             engine, Sub_Batch_Events.FORWARD_PASS_COMPLETED, section_start)
+
         if guard:
             # Ensure training isn't failing
             last = getattr(engine.state, "last", None)
@@ -86,34 +91,36 @@ def create_engine(model, loss_fn, constraint_fn, optimizer=None, metrics=None, m
             engine.state.last = engine.state.out
             if torch.allclose(engine.state.out, engine.state.out.new_zeros(engine.state.out.size())):
                 print("WARNING! Training is failing")
-
         section_start = end_section(
             engine, Sub_Batch_Events.GUARD_COMPLETED, section_start)
+
         # FIXME Figure out why things aren't converging correctly
         engine.state.loss = loss_fn(engine.state.out, engine.state.yb)
         engine.state.mean_loss = torch.mean(engine.state.loss)
-
         section_start = end_section(
             engine, Sub_Batch_Events.LOSS_COMPUTED, section_start)
+
         engine.state.constraints = constraint_fn(
             engine.state.out, engine.state.xb, **constraint_kwargs)
-
         section_start = end_section(
             engine, Sub_Batch_Events.CONSTRAINTS_COMPUTED, section_start)
-        # TODO Eventually, we will want to upgrade this to be method specific
-        engine.state.multipliers = compute_multipliers(
-            engine.state.loss, engine.state.constraints, list(model.parameters()))
-        # This computes either a batched or unbatched dot product
-        # FIXME Figure out why things aren't converging correctly
-        engine.state.constrained_loss = torch.mean(
-            engine.state.loss + torch.einsum('...i,...i->...',
-                                             engine.state.constraints,
-                                             engine.state.multipliers
-                                             )
-        )
 
+        if method == "average":
+            engine.state.constrained_loss, engine.state.multipliers = average_constrained_loss(
+                engine.state.loss, engine.state.constraints, list(model.parameters()), return_multipliers=True)
+        elif method == "batchwise":
+            engine.state.constrained_loss, engine.state.multipliers = batchwise_constrained_loss(
+                engine.state.loss, engine.state.constraints, list(model.parameters()), return_multipliers=True)
+        elif method == "unconstrained":
+            # Technically the multipliers are zero, so we set this for consistency
+            engine.state.multipliers = engine.state.constraints.new_zeros(
+                engine.state.constraints.size())
+            engine.state.constrained_loss = torch.mean(engine.state.loss)
+        else:
+            raise ValueError(f"Method {method} not known. Please respecify")
         section_start = end_section(
             engine, Sub_Batch_Events.REWEIGHTED_LOSS_COMPUTED, section_start)
+
         if optimizer is not None:
             engine.state.constrained_loss.backward()
             optimizer.step()
@@ -122,7 +129,6 @@ def create_engine(model, loss_fn, constraint_fn, optimizer=None, metrics=None, m
             engine.state.optimizer_state_dict = optimizer.state_dict()
         else:
             engine.state.optimizer_state_dict = None
-
         section_start = end_section(
             engine, Sub_Batch_Events.OPTIMIZER_STEPPED, section_start)
 
