@@ -54,6 +54,7 @@ def default_configuration():
     model_act: activation function for the model. Defaults to nn.ReLU()
     model_final_act: activation function for last layer. Defaults to None
     learning_rate: learning rate. Defaults to 0.01
+    method: method to use for constraining. See the event loop for more details
     """
     return {
         'frequency': 1.0,
@@ -67,6 +68,7 @@ def default_configuration():
         'model_act': nn.ReLU(),
         'model_final_act': None,
         'learning_rate': 0.01,
+        'method': "average",
     }
 
 
@@ -153,19 +155,22 @@ def run_experiment(max_epochs, log=None, evaluate_training=True, evaluate_testin
 
     # This is the trainer because we provide the optimizer
     trainer = create_engine(
-        model, loss, constraint, opt, metrics=get_metrics(), monitor=training_monitor, k=kwargs['frequency']
+        model, loss, constraint, opt, metrics=get_metrics(),
+        monitor=training_monitor, method=kwargs['method'], k=kwargs['frequency']
     )
 
     # These are not trainers because we don't provide the optimizer
     if evaluate_training:
         train_evaluator = create_engine(
-            model, loss, constraint, metrics=get_metrics(), monitor=evaluation_train_monitor, k=kwargs['frequency']
+            model, loss, constraint, metrics=get_metrics(),
+            monitor=evaluation_train_monitor, method=kwargs['method'], k=kwargs['frequency']
         )
     else:
         train_evaluator = None
     if evaluate_testing:
         test_evaluator = create_engine(
-            model, loss, constraint, metrics=get_metrics(), monitor=evaluation_test_monitor, k=kwargs['frequency']
+            model, loss, constraint, metrics=get_metrics(),
+            monitor=evaluation_test_monitor, method=kwargs['method'], k=kwargs['frequency']
         )
     else:
         test_evaluator = None
