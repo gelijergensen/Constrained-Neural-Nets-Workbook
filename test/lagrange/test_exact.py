@@ -42,7 +42,7 @@ def test_compute_multipliers():
     j_g[:, 0, 0] = 1.
     j_fT = torch.ones((batch_size, rand_size, 1))
     expected = (constraint.view(-1, 1, 1) -
-                torch.bmm(j_g, j_fT)).view(-1, 1)
+                torch.bmm(j_g, j_fT)).view(constraint.size())
 
     assert(torch.allclose(con_loss, expected))
 

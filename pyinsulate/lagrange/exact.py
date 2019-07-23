@@ -14,7 +14,7 @@ def compute_multipliers(loss, constraints, parameters, warn=True):
     :param parameters: an iterable of the parameters to optimize
     :param warn: whether to warn if the constraints are ill-conditioned. If set
         to "error", then will throw a RuntimeError if this occurs
-    :returns: the optimal Lagrange multipliers
+    :returns: the optimal Lagrange multipliers in the same shape as constraints
     """
     return _compute_multipliers(loss, constraints, parameters, warn=warn, allow_unused=True)
 
@@ -31,15 +31,18 @@ def _compute_multipliers(loss, constraints, parameters, warn=True, allow_unused=
 
     batched = loss.dim() > 0
     # Handle the special case of only one constraint
+    original_constraints_size = constraints.size()
     if constraints.dim() == loss.dim():
         constraints = constraints.unsqueeze(-1)
 
+    # Even though the loss is batched, the parameters are not, so we compute
+    # the jacobian in an unbatched way and reassemble
     jac_f = torch.cat([jac.view(*loss.size(), -1) for jac in
-                       jacobian(loss, parameters, batched=batched,
+                       jacobian(loss, parameters, batched=False,
                                 create_graph=True, allow_unused=allow_unused)],
                       dim=-1)
     jac_g = torch.cat([jac.view(*constraints.size(), -1) for jac in
-                       jacobian(constraints, parameters, batched=batched,
+                       jacobian(constraints, parameters, batched=False,
                                 create_graph=True, allow_unused=allow_unused)],
                       dim=-1)
     jac_fT = jac_f.unsqueeze(-1)
@@ -85,4 +88,4 @@ def _compute_multipliers(loss, constraints, parameters, warn=True, allow_unused=
         multipliers = torch.einsum(
             'ij,jk->i', gram_inverse, untransformed_weights)
 
-    return multipliers
+    return multipliers.view(original_constraints_size)
