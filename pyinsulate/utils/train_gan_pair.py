@@ -5,7 +5,22 @@ import torch.nn as nn
 __all__ = ["train_gan_pair"]
 
 
-def train_gan_pair(gener, discr, train_dl, valid_dl, gener_opt, discr_opt, should_stop, discr_loss_fn=nn.BCELoss(), extra_gener_loss_fn=None, real_label=1, fake_label=0, log=print, callbacks=None, start_epoch=0):
+def train_gan_pair(
+    gener,
+    discr,
+    train_dl,
+    valid_dl,
+    gener_opt,
+    discr_opt,
+    should_stop,
+    discr_loss_fn=nn.BCELoss(),
+    extra_gener_loss_fn=None,
+    real_label=1,
+    fake_label=0,
+    log=print,
+    callbacks=None,
+    start_epoch=0,
+):
     """Trains a generator/discriminator pair until the desired criterion is met
 
     :param gener: model which generates examples from the training inputs
@@ -48,8 +63,19 @@ def train_gan_pair(gener, discr, train_dl, valid_dl, gener_opt, discr_opt, shoul
         gener.train()
         for xb, yb in train_dl:
             gan_training_loop(
-                gener, discr, discr_loss_fn, extra_gener_loss_fn, xb, yb,
-                real_label, fake_label, log, callbacks, False, gener_opt, discr_opt,
+                gener,
+                discr,
+                discr_loss_fn,
+                extra_gener_loss_fn,
+                xb,
+                yb,
+                real_label,
+                fake_label,
+                log,
+                callbacks,
+                False,
+                gener_opt,
+                discr_opt,
             )
         # Handle callbacks
         for callback in callbacks:
@@ -63,8 +89,17 @@ def train_gan_pair(gener, discr, train_dl, valid_dl, gener_opt, discr_opt, shoul
             gener.eval()
             for xb, yb in valid_dl:
                 gan_training_loop(
-                    gener, discr, discr_loss_fn, extra_gener_loss_fn, xb, yb,
-                    real_label, fake_label, log, callbacks, True
+                    gener,
+                    discr,
+                    discr_loss_fn,
+                    extra_gener_loss_fn,
+                    xb,
+                    yb,
+                    real_label,
+                    fake_label,
+                    log,
+                    callbacks,
+                    True,
                 )
         # Handle callbacks
         for callback in callbacks:
@@ -75,7 +110,21 @@ def train_gan_pair(gener, discr, train_dl, valid_dl, gener_opt, discr_opt, shoul
         callback.pause(locals())
 
 
-def gan_training_loop(gener, discr, discr_loss_fn, extra_gener_loss_fn, xb, yb, real_label, fake_label, log, callbacks, is_validation, gener_opt=None, discr_opt=None):
+def gan_training_loop(
+    gener,
+    discr,
+    discr_loss_fn,
+    extra_gener_loss_fn,
+    xb,
+    yb,
+    real_label,
+    fake_label,
+    log,
+    callbacks,
+    is_validation,
+    gener_opt=None,
+    discr_opt=None,
+):
     """Performs a forwards and possibly backwards pass of the GANs. Updates the
     models only if their respective opts are not None
 
@@ -127,8 +176,9 @@ def gan_training_loop(gener, discr, discr_loss_fn, extra_gener_loss_fn, xb, yb, 
     # Evaluate generator using discriminator before update
     gener_target = torch.full_like(discr_fake_out, real_label)
     if extra_gener_loss_fn is not None:
-        gener_loss = discr_loss_fn(discr_fake_out, gener_target) + \
-            extra_gener_loss_fn(gener_out, yb)
+        gener_loss = discr_loss_fn(
+            discr_fake_out, gener_target
+        ) + extra_gener_loss_fn(gener_out, yb)
     else:
         gener_loss = discr_loss_fn(discr_fake_out, gener_target)
     # Update generator

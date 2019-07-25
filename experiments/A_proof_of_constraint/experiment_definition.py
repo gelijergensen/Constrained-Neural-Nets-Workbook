@@ -26,17 +26,18 @@ def dictionary_product(**kwargs):
         yield dict(zip(keys, instance))
 
 
-CONFIGURATIONS = list(dictionary_product(**{
-    'training_sampling': ["uniform"],
-    'num_points': [100],
-    'num_training': [10],
-    'batch_size': [10],
-    'model_size': [
-        [50],
-        [25, 25],
-    ],
-    'learning_rate': [1e-2],
-}))
+CONFIGURATIONS = list(
+    dictionary_product(
+        **{
+            "training_sampling": ["uniform"],
+            "num_points": [100],
+            "num_training": [10],
+            "batch_size": [10],
+            "model_size": [[50], [25, 25]],
+            "learning_rate": [1e-2],
+        }
+    )
+)
 
 if __name__ == "__main__":
     # write out the number of configurations to the batch script which called this

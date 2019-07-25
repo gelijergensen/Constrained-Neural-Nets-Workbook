@@ -10,7 +10,11 @@ from pyinsulate.utils.train_gan_pair import train_gan_pair
 from pyinsulate.utils.callbacks import OutputLogger, Callback, LossLogger
 from turbulence_dataloader import get_turbulence_dataloaders
 from visualization.two_dimensional import plot_slice, plot_slice_comparison
-from visualization.visualize_data import plot_quiver_of_3D_tensor, animation_of_3D_tensor, animation_of_slice_comparison
+from visualization.visualize_data import (
+    plot_quiver_of_3D_tensor,
+    animation_of_3D_tensor,
+    animation_of_slice_comparison,
+)
 
 
 class TurbGen(nn.Module):
@@ -19,8 +23,9 @@ class TurbGen(nn.Module):
         self.conv = nn.ConvTranspose3d(3, 3, 2, stride=2)
         self.relu = nn.ReLU()
         # Intended reuse
-        self.convs = [self.conv for i in range(int(
-            np.log2(out_res)-np.log2(in_res)))]
+        self.convs = [
+            self.conv for i in range(int(np.log2(out_res) - np.log2(in_res)))
+        ]
 
     def forward(self, xb):
         return reduce(lambda res, layer: self.relu(layer(res)), self.convs, xb)
@@ -38,8 +43,9 @@ class TurbDis(nn.Module):
     def forward(self, xb):
 
         # def apl()
-        x = reduce(lambda res, layer: self.relu(
-            layer(res)), self.convs, xb).view(1, -1)
+        x = reduce(
+            lambda res, layer: self.relu(layer(res)), self.convs, xb
+        ).view(1, -1)
         x = self.lin(x)
 
         return torch.sigmoid(x)
@@ -47,9 +53,8 @@ class TurbDis(nn.Module):
 
 if __name__ == "__main__":
 
-    path = os.path.expandvars('$SCRATCH/data/divfree-test')
-    train_dl, valid_dl, test_dl = get_turbulence_dataloaders(
-        path, batch_size=1)
+    path = os.path.expandvars("$SCRATCH/data/divfree-test")
+    train_dl, valid_dl, test_dl = get_turbulence_dataloaders(path, batch_size=1)
 
     print(len(train_dl))
     print(len(valid_dl))
@@ -110,15 +115,12 @@ if __name__ == "__main__":
     # with open('dis_loss_logger.pkl', 'wb') as f:
     #     torch.save(dis_loss_logger, f)
 
-    with open('output_logger.pkl', 'rb') as f:
-        output_logger = torch.load(
-            f, map_location='cpu')
-    with open('gen_loss_logger.pkl', 'rb') as f:
-        gen_loss_logger = torch.load(
-            f, map_location='cpu')
-    with open('dis_loss_logger.pkl', 'rb') as f:
-        dis_loss_logger = torch.load(
-            f, map_location='cpu')
+    with open("output_logger.pkl", "rb") as f:
+        output_logger = torch.load(f, map_location="cpu")
+    with open("gen_loss_logger.pkl", "rb") as f:
+        gen_loss_logger = torch.load(f, map_location="cpu")
+    with open("dis_loss_logger.pkl", "rb") as f:
+        dis_loss_logger = torch.load(f, map_location="cpu")
 
     print(gen_loss_logger.train_losses)
     print(gen_loss_logger.valid_losses)
@@ -127,15 +129,19 @@ if __name__ == "__main__":
 
     train_xb_cpu = output_logger.train_xb[0].cpu()
     train_yb_cpu = output_logger.train_yb[0].cpu()
-    data = [[train_xb_cpu, output[0], train_yb_cpu]
-            for output in output_logger.train_outputs]
+    data = [
+        [train_xb_cpu, output[0], train_yb_cpu]
+        for output in output_logger.train_outputs
+    ]
 
     animation_of_slice_comparison(data, "training_comparison.gif")
 
     valid_xb_cpu = output_logger.valid_xb[0].cpu()
     valid_yb_cpu = output_logger.valid_yb[0].cpu()
-    data = [[valid_xb_cpu, output[0], valid_yb_cpu]
-            for output in output_logger.valid_outputs]
+    data = [
+        [valid_xb_cpu, output[0], valid_yb_cpu]
+        for output in output_logger.valid_outputs
+    ]
 
     animation_of_slice_comparison(data, "validation_comparison.gif")
 
@@ -155,4 +161,4 @@ if __name__ == "__main__":
     # animation_of_3D_tensor(xb[0], "animated.gif")
     # plot_slice_of_3D_tensor(train_data[0][1], "temp-rbg.png", hsv=False)
 
-    print('done!')
+    print("done!")

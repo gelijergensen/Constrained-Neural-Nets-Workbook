@@ -12,6 +12,7 @@ __all__ = ["get_singlewave_dataloaders"]
 def construct_wave_equation(amplitude, frequency, phase):
     def wave_equation(xs):
         return amplitude * torch.sin(frequency * xs + phase)
+
     return wave_equation
 
 
@@ -29,21 +30,33 @@ def make_singlewave_data(frequency, phase, amplitude, num_points):
     return xs, ys, (construct_wave_equation, parameterization)
 
 
-def get_singlewave_dataloaders(frequency, phase=None, amplitude=1.0, num_points=100000, num_training=100, batch_size=32, sampling="start", return_equation=False):
+def get_singlewave_dataloaders(
+    frequency,
+    phase=None,
+    amplitude=1.0,
+    num_points=100000,
+    num_training=100,
+    batch_size=32,
+    sampling="start",
+    return_equation=False,
+):
     xs, ys, equation = make_singlewave_data(
-        frequency, phase, amplitude, num_points)
+        frequency, phase, amplitude, num_points
+    )
 
     all_idxs = np.arange(0, len(xs))
     if sampling == "start":
         train_idxs = all_idxs < num_training
     elif sampling == "uniform":
         train_idxs = np.linspace(
-            0, len(xs), endpoint=False, num=num_training, dtype=int)
+            0, len(xs), endpoint=False, num=num_training, dtype=int
+        )
     elif sampling == "random":
         train_idxs = np.random.permutation(len(xs))[:num_training]
     else:
         print(
-            f"Warning! sampling method {sampling} not recognized! Defaulting to 'start'")
+            f"Warning! sampling method {sampling} not recognized! Defaulting to 'start'"
+        )
         train_idxs = all_idxs < num_training
 
     # These clone, but it's not really an issue because of how small this is

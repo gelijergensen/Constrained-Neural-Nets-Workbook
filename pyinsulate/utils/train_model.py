@@ -6,7 +6,17 @@ import torch
 __all__ = ["train_model"]
 
 
-def train_model(model, train_dl, valid_dl, loss_fn, opt, should_stop, log=print, callbacks=None, start_epoch=0):
+def train_model(
+    model,
+    train_dl,
+    valid_dl,
+    loss_fn,
+    opt,
+    should_stop,
+    log=print,
+    callbacks=None,
+    start_epoch=0,
+):
     """Trains a model until the desired criterion is met
 
     :param model: a model to train
@@ -61,7 +71,9 @@ def train_model(model, train_dl, valid_dl, loss_fn, opt, should_stop, log=print,
         callback.pause(locals())
 
 
-def training_loop(model, loss_fn, xb, yb, log, callbacks, is_validation, opt=None):
+def training_loop(
+    model, loss_fn, xb, yb, log, callbacks, is_validation, opt=None
+):
     """Computes the loss for a model on a batch (xb, yb). Updates the model if
     opt is not None
 

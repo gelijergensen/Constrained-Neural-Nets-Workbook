@@ -19,5 +19,5 @@ def test_steady_state_turbulence():
     out = torch.relu(xb)
     very_batch_loss = pde_loss(out, xb)
 
-    assert(torch.allclose(single_loss, batch_loss))
-    assert(torch.allclose(batch_loss, very_batch_loss))
+    assert torch.allclose(single_loss, batch_loss)
+    assert torch.allclose(batch_loss, very_batch_loss)

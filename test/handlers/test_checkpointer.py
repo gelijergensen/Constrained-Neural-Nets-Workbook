@@ -20,17 +20,13 @@ class Mnist_Logistic(nn.Module):
 
 
 class SimpleCheckpointer(Checkpointer):
-
     def __init__(self, dirname, filename_base):
         super().__init__(dirname, filename_base, save_interval=1)
 
         self.constant = "This is a constant"
 
     def retrieve(self, engine):
-        return {
-            'constant': self.constant,
-            'epoch': engine.state.epoch,
-        }
+        return {"constant": self.constant, "epoch": engine.state.epoch}
 
 
 def test_checkpointer():
@@ -50,13 +46,14 @@ def test_checkpointer():
         num_epochs = 1
         trainer.run(train_dl, max_epochs=num_epochs)
         # load from file and compare
-        checkpoint = torch.load(os.path.join(
-            checkpointer._dirname, f"{checkpointer._filename_base}_{checkpointer._iteration}.pth"))
-        expected = {
-            'constant': checkpointer.constant,
-            'epoch': num_epochs
-        }
-        assert(checkpoint == expected)
+        checkpoint = torch.load(
+            os.path.join(
+                checkpointer._dirname,
+                f"{checkpointer._filename_base}_{checkpointer._iteration}.pth",
+            )
+        )
+        expected = {"constant": checkpointer.constant, "epoch": num_epochs}
+        assert checkpoint == expected
     except AssertionError as assertFailed:
         failure = assertFailed
     else:

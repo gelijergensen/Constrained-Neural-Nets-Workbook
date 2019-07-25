@@ -7,7 +7,7 @@ from .coloration import convert_color
 from .two_dimensional import get_plot_slice_data
 
 
-def plot_quiver_of_3D_tensor(tensor, filename, color_scheme='sph'):
+def plot_quiver_of_3D_tensor(tensor, filename, color_scheme="sph"):
     """Plots a 3D quiver plot of the tensor in color"""
 
     data = tensor.data.numpy()
@@ -21,16 +21,34 @@ def plot_quiver_of_3D_tensor(tensor, filename, color_scheme='sph'):
     color = convert_color(color, color_scheme)
 
     fig = plt.figure()
-    ax = fig.gca(projection='3d')
-    ax.quiver(xyz[0], xyz[1], xyz[2], data[0],
-              data[1], data[2], length=0.3, normalize=True, colors=color.reshape(-1, 3))
+    ax = fig.gca(projection="3d")
+    ax.quiver(
+        xyz[0],
+        xyz[1],
+        xyz[2],
+        data[0],
+        data[1],
+        data[2],
+        length=0.3,
+        normalize=True,
+        colors=color.reshape(-1, 3),
+    )
     ax.set_axis_off()
     print("Saving plot to %s" % filename)
     plt.savefig(filename)
     plt.close()
 
 
-def animation_of_slice_comparison(time_tensors, filename, axis=2, idx=20, plot_uvw='uv', color_scheme='hv', dpi=100, fps=20):
+def animation_of_slice_comparison(
+    time_tensors,
+    filename,
+    axis=2,
+    idx=20,
+    plot_uvw="uv",
+    color_scheme="hv",
+    dpi=100,
+    fps=20,
+):
     """Plots a series of tensors over time
 
     :param time_tensors: a list of list of tensors to plot, where the first list
@@ -47,7 +65,11 @@ def animation_of_slice_comparison(time_tensors, filename, axis=2, idx=20, plot_u
     ln = list()
     for ax, tensor in zip(axes, time_tensors[0]):
         data = get_plot_slice_data(
-            tensor, axis=axis, idx=idx, plot_uvw=plot_uvw, color_scheme=color_scheme
+            tensor,
+            axis=axis,
+            idx=idx,
+            plot_uvw=plot_uvw,
+            color_scheme=color_scheme,
         )
         ln.append(ax.imshow(data))
         ax.set_axis_off()
@@ -58,7 +80,11 @@ def animation_of_slice_comparison(time_tensors, filename, axis=2, idx=20, plot_u
             # if i == 1:
             #     print(tensor.max())
             data = get_plot_slice_data(
-                tensor, axis=axis, idx=idx, plot_uvw=plot_uvw, color_scheme=color_scheme
+                tensor,
+                axis=axis,
+                idx=idx,
+                plot_uvw=plot_uvw,
+                color_scheme=color_scheme,
             )
             ln[i].set_data(data)
         return ln
@@ -88,7 +114,7 @@ def animation_of_3D_tensor(tensor, filename, idx=20):
     ln = ax.imshow(data)
 
     def init():
-        return ln,
+        return (ln,)
 
     def update(alpha):
 
@@ -96,11 +122,16 @@ def animation_of_3D_tensor(tensor, filename, idx=20):
 
         to_plot = data * alpha + recolored * (1 - alpha)
         ln.set_data(to_plot)
-        return ln,
+        return (ln,)
 
     print("Saving animation to %s" % filename)
-    ani = FuncAnimation(fig, update, frames=np.linspace(
-        0, 2*np.pi, num=200), init_func=init, blit=True)
+    ani = FuncAnimation(
+        fig,
+        update,
+        frames=np.linspace(0, 2 * np.pi, num=200),
+        init_func=init,
+        blit=True,
+    )
     fig.set_dpi(100)
     ani.save(filename, writer="pillow", fps=20)
     plt.close()

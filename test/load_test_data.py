@@ -10,17 +10,20 @@ DATA_DIR = Path(".temp")
 def get_mnist_dataloaders(batch_size=32):
     filename = Path("mnist.pkl.gz")
     with gzip.open(DATA_DIR / filename, "rb") as f:
-        ((x_train, y_train), (x_valid, y_valid),
-         _) = pickle.load(f, encoding="latin-1")
+        ((x_train, y_train), (x_valid, y_valid), _) = pickle.load(
+            f, encoding="latin-1"
+        )
 
     x_train, y_train, x_valid, y_valid = map(
         torch.as_tensor, (x_train, y_train, x_valid, y_valid)
     )
 
-    train_dl = DataLoader(TensorDataset(
-        x_train, y_train), batch_size=batch_size, shuffle=True)
-    valid_dl = DataLoader(TensorDataset(
-        x_valid, y_valid), batch_size=batch_size * 2)
+    train_dl = DataLoader(
+        TensorDataset(x_train, y_train), batch_size=batch_size, shuffle=True
+    )
+    valid_dl = DataLoader(
+        TensorDataset(x_valid, y_valid), batch_size=batch_size * 2
+    )
     return train_dl, valid_dl
 
 
@@ -29,8 +32,9 @@ def get_mnist_gan_dataloaders(batch_size=32):
     # the class labels
     filename = Path("mnist.pkl.gz")
     with gzip.open(DATA_DIR / filename, "rb") as f:
-        ((y_train, x_train), (y_valid, x_valid),
-         _) = pickle.load(f, encoding="latin-1")
+        ((y_train, x_train), (y_valid, x_valid), _) = pickle.load(
+            f, encoding="latin-1"
+        )
 
     x_train, y_train, x_valid, y_valid = map(
         torch.as_tensor, (x_train, y_train, x_valid, y_valid)
@@ -39,8 +43,10 @@ def get_mnist_gan_dataloaders(batch_size=32):
     x_train = x_train.type(torch.float)
     x_valid = x_valid.type(torch.float)
 
-    train_dl = DataLoader(TensorDataset(
-        x_train, y_train), batch_size=batch_size, shuffle=True)
-    valid_dl = DataLoader(TensorDataset(
-        x_valid, y_valid), batch_size=batch_size * 2)
+    train_dl = DataLoader(
+        TensorDataset(x_train, y_train), batch_size=batch_size, shuffle=True
+    )
+    valid_dl = DataLoader(
+        TensorDataset(x_valid, y_valid), batch_size=batch_size * 2
+    )
     return train_dl, valid_dl

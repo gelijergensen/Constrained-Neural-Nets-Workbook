@@ -19,11 +19,11 @@ def initialize(args):
     )
 
     activations = {
-        'tanh': nn.Tanh(),
-        'relu': nn.ReLU(),
-        'leakyrelu': nn.LeakyReLU(),
-        'sigmoid': nn.Sigmoid(),
-        'selu': nn.SELU(),
+        "tanh": nn.Tanh(),
+        "relu": nn.ReLU(),
+        "leakyrelu": nn.LeakyReLU(),
+        "sigmoid": nn.Sigmoid(),
+        "selu": nn.SELU(),
     }
     act_keys = list(activations.keys())
     act_keys.sort()
@@ -59,7 +59,7 @@ def finalize(results):
 if __name__ == "__main__":
 
     base_name = "hyper-simple-turbulence"
-    time_string = datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+    time_string = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
     savefile = f"{base_name}_{time_string}.pth"
 
     print(f"Running hyperthreaded simple turbulence with savefile {savefile}")
@@ -68,19 +68,25 @@ if __name__ == "__main__":
     nproc = 2
     num_jobs = nproc * 4
 
-    print(f'num_jobs: {num_jobs}')
+    print(f"num_jobs: {num_jobs}")
 
     args = ((i,) for i in range(num_jobs))
 
-    path = os.path.expandvars('$SCRATCH/data/divfree-test/raw_0100.npy')
+    path = os.path.expandvars("$SCRATCH/data/divfree-test/raw_0100.npy")
     batch_size = 128
     train_set, test_set = load_data(
-        path, 32, batch_size=batch_size, just_datasets=True)
+        path, 32, batch_size=batch_size, just_datasets=True
+    )
 
     results = perform_multiprocessed(
-        initialize, (None,), multiprocessed_analysis, args, finalize, nproc=nproc
+        initialize,
+        (None,),
+        multiprocessed_analysis,
+        args,
+        finalize,
+        nproc=nproc,
     )
 
     print(results)
     print(f"Saved to file {savefile}")
-    print('done!')
+    print("done!")

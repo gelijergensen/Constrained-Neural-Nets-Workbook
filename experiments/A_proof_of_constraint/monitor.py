@@ -6,31 +6,29 @@ from .event_loop import Sub_Batch_Events
 
 
 class ProofOfConstraintMonitor(Monitor):
-
     def __init__(self):
         super().__init__()
 
-        self.add('epoch', average=True)
-        self.add('loss', average=False)
-        self.add('mean_loss', average=False)
-        self.add('constrained_loss', average=False)
-        self.add('batch_size', average=False)
-        self.add('constraints', average=False)
-        self.time_keys = ['total'] + [event.value for event in Sub_Batch_Events]
+        self.add("epoch", average=True)
+        self.add("loss", average=False)
+        self.add("mean_loss", average=False)
+        self.add("constrained_loss", average=False)
+        self.add("batch_size", average=False)
+        self.add("constraints", average=False)
+        self.time_keys = ["total"] + [event.value for event in Sub_Batch_Events]
         for key in self.time_keys:
             self.add(key, average=True)
 
     def new_epoch(self, engine):
         super().new_epoch(engine)
-        last_epoch = self.get(
-            'epoch', -2) if len(self.get('epoch')) > 1 else 0
-        self.set('epoch', last_epoch + 1)
+        last_epoch = self.get("epoch", -2) if len(self.get("epoch")) > 1 else 0
+        self.set("epoch", last_epoch + 1)
 
     def __call__(self, engine):
-        self.set('loss', engine.state.loss.to('cpu'))
-        self.set('mean_loss', engine.state.mean_loss.item())
-        self.set('constrained_loss', engine.state.constrained_loss.item())
-        self.set('batch_size', len(engine.state.xb))
-        self.set('constraints', engine.state.constraints.to('cpu'))
+        self.set("loss", engine.state.loss.to("cpu"))
+        self.set("mean_loss", engine.state.mean_loss.item())
+        self.set("constrained_loss", engine.state.constrained_loss.item())
+        self.set("batch_size", len(engine.state.xb))
+        self.set("constraints", engine.state.constraints.to("cpu"))
         for key in self.time_keys:
             self.set(key, engine.state.times[key])

@@ -9,7 +9,15 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 
 
-def get_turbulence_dataloaders(dataroot, ires=32, ores=128, augment=True, frac_valid=0.2, frac_test=0.2, batch_size=8):
+def get_turbulence_dataloaders(
+    dataroot,
+    ires=32,
+    ores=128,
+    augment=True,
+    frac_valid=0.2,
+    frac_test=0.2,
+    batch_size=8,
+):
     """Grabs all three dataloaders, given the location of the data, options, and
     fraction of testing and validation data
 
@@ -23,8 +31,10 @@ def get_turbulence_dataloaders(dataroot, ires=32, ores=128, augment=True, frac_v
     :return: training, validation, testing
     """
 
-    assert frac_valid + frac_test < 1.0, "Validation and Testing data" + \
-        "should account for less than 1.0 of the data"
+    assert frac_valid + frac_test < 1.0, (
+        "Validation and Testing data"
+        + "should account for less than 1.0 of the data"
+    )
 
     all_files = glob("%s/*.npy" % dataroot)
     length = len(all_files)
@@ -39,17 +49,21 @@ def get_turbulence_dataloaders(dataroot, ires=32, ores=128, augment=True, frac_v
     train_dl = DataLoader(
         TurbulenceDataset(
             training_files, ires=ires, ores=ores, augment=augment, mode="train"
-        ), shuffle=True, batch_size=batch_size
+        ),
+        shuffle=True,
+        batch_size=batch_size,
     )
     valid_dl = DataLoader(
         TurbulenceDataset(
-            validation_files, ires=ires, ores=ores, augment=False, mode="val"),
-        batch_size=batch_size
+            validation_files, ires=ires, ores=ores, augment=False, mode="val"
+        ),
+        batch_size=batch_size,
     )
     test_dl = DataLoader(
         TurbulenceDataset(
-            testing_files, ires=ires, ores=ores, augment=False, mode="val"),
-        batch_size=batch_size
+            testing_files, ires=ires, ores=ores, augment=False, mode="val"
+        ),
+        batch_size=batch_size,
     )
 
     return train_dl, valid_dl, test_dl
@@ -72,11 +86,11 @@ class TurbulenceDataset(Dataset):
 
         self.filelist = filelist
         self.aug = augment
-        assert(np.log2(ires) % 1 == 0 and np.log2(ores) % 1 == 0)
+        assert np.log2(ires) % 1 == 0 and np.log2(ores) % 1 == 0
         self.ires = ires
         self.ores = ores
-        self.idx = int(128/ires)
-        self.odx = int(128/ores)
+        self.idx = int(128 / ires)
+        self.odx = int(128 / ores)
 
     def __len__(self):
         return len(self.filelist)
@@ -89,10 +103,10 @@ class TurbulenceDataset(Dataset):
         if self.aug:
             dx, dy, dz = np.random.randint(0, n, 3)
             t = torch.arange(n)
-            xx = (t+dx) % n
-            yy = (t+dy) % n
-            zz = (t+dz) % n
+            xx = (t + dx) % n
+            yy = (t + dy) % n
+            zz = (t + dz) % n
             vel = vel[:, xx, :, :][:, :, yy, :][:, :, :, zz]
-        ivel = vel[:, ::self.idx, ::self.idx, ::self.idx]
-        ovel = vel[:, ::self.odx, ::self.odx, ::self.odx]
+        ivel = vel[:, :: self.idx, :: self.idx, :: self.idx]
+        ovel = vel[:, :: self.odx, :: self.odx, :: self.odx]
         return ivel, ovel

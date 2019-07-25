@@ -9,8 +9,10 @@ def send_all_models_to_gpus(*models):
         if num_gpus > 1:
             print("Many gpus!")
             device_list = list(range(num_gpus))
-            out_models = [nn.DataParallel(model.to(device), device_list)
-                          for model in models]
+            out_models = [
+                nn.DataParallel(model.to(device), device_list)
+                for model in models
+            ]
         else:
             out_models = [model.to(device) for model in models]
     else:

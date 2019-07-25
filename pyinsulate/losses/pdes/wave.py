@@ -14,7 +14,8 @@ def helmholtz_equation(outputs, inputs, k=1):
     batched = len(inputs.size()) > 1
 
     jac, lap = jacobian_and_laplacian(
-        outputs, inputs, batched=batched, create_graph=True, allow_unused=False)
+        outputs, inputs, batched=batched, create_graph=True, allow_unused=False
+    )
 
     # r$ k^2 u + \nabla^2 u = 0 $
     return (k * k) * outputs + lap

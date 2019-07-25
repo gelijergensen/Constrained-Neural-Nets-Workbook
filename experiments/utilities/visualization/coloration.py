@@ -39,13 +39,15 @@ def cartesian_to_polar(data):
 def cartesian_to_spherical(data):
     out = np.zeros(data.shape)
 
-    out[..., 0] = np.sqrt(data[..., 0] ** 2 +
-                          data[..., 1] ** 2 + data[..., 2] ** 2)
+    out[..., 0] = np.sqrt(
+        data[..., 0] ** 2 + data[..., 1] ** 2 + data[..., 2] ** 2
+    )
     # for elevation angle defined from Z-axis down
     out[..., 1] = np.arctan2(data[..., 1], data[..., 0])
     # This (azimuth) will become hue
-    out[..., 2] = np.arctan2(np.sqrt(data[..., 0] ** 2 +
-                                     data[..., 1] ** 2), data[..., 2])
+    out[..., 2] = np.arctan2(
+        np.sqrt(data[..., 0] ** 2 + data[..., 1] ** 2), data[..., 2]
+    )
     return out
 
 
@@ -75,16 +77,17 @@ def convert_color(data, color="rgb"):
     """
 
     # 3D
-    if color == 'hsv':
+    if color == "hsv":
         return hsv_to_rgb(data)
-    elif color == 'sph':
-        return hsv_to_rgb(spherical_to_hsv(
-            rescale_spherical(cartesian_to_spherical(data))))
+    elif color == "sph":
+        return hsv_to_rgb(
+            spherical_to_hsv(rescale_spherical(cartesian_to_spherical(data)))
+        )
     # 2D
-    elif color == 'hv':
+    elif color == "hv":
         return hsv_to_rgb(polar_to_hsv(cartesian_to_polar(data)))
     # 1D
-    elif color == 'gray':
+    elif color == "gray":
         return grayscale_to_rbg(data)
     else:
         return data

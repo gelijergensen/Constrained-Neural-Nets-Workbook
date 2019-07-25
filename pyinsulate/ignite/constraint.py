@@ -24,8 +24,12 @@ class GradientConstraint(GradientMetric):
 
     """
 
-    def __init__(self, constraint_fn, output_transform=lambda x: x,
-                 batch_size=lambda x: x.shape[0]):
+    def __init__(
+        self,
+        constraint_fn,
+        output_transform=lambda x: x,
+        batch_size=lambda x: x.shape[0],
+    ):
         super(GradientConstraint, self).__init__(output_transform)
         self._constraint_fn = constraint_fn
         self._batch_size = batch_size
@@ -46,5 +50,6 @@ class GradientConstraint(GradientMetric):
     def compute(self):
         if self._num_examples == 0:
             raise NotComputableError(
-                'GradientConstraint must have at least one example before it can be computed.')
+                "GradientConstraint must have at least one example before it can be computed."
+            )
         return self._sum / self._num_examples
