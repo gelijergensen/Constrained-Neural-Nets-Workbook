@@ -37,4 +37,4 @@ class Dense(nn.Module):
         xb = self.layers[-1](xb)
         if self.final_act is not None:
             xb = self.final_act(xb)
-        return xb.view(-1)
+        return xb.view(-1, 1)
