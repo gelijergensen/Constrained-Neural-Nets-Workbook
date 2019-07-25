@@ -80,7 +80,7 @@ def build_model_and_optimizer(configuration):
     opt = optim.Adam(model.parameters(), lr=configuration['learning_rate'])
     # We need the entire batch of losses, not it's sum
     loss = nn.MSELoss(reduction='none')
-    constraint = abs_value_decorator(helmholtz_equation)
+    constraint = helmholtz_equation
     return model, opt, loss, constraint
 
 
@@ -182,24 +182,16 @@ def run_experiment(max_epochs, log=None, evaluate_training=True, evaluate_testin
             training_monitor(trainer)
 
         if evaluate_training:
-            train_evaluator.run(test_dl)
             if should_log:
-                metrics = train_evaluator.state.metrics
-                summary = f"Epoch[{trainer.state.epoch}] Training Summary - "
-                for key in metrics:
-                    summary += f"{key}: {metrics[key]}\t"
-                log(summary)
+                log(f"Epoch[{trainer.state.epoch}] - Evaluating on training data...")
+            train_evaluator.run(train_dl)
             if evaluation_train_monitor is not None:
                 evaluation_train_monitor(train_evaluator)
 
         if evaluate_testing:
-            test_evaluator.run(test_dl)
             if should_log:
-                metrics = test_evaluator.state.metrics
-                summary = f"Epoch[{trainer.state.epoch}] Testing Summary - "
-                for key in metrics:
-                    summary += f"{key}: {metrics[key]}\t"
-                log(summary)
+                log(f"Epoch[{trainer.state.epoch}] - Evaluating on testing data...")
+            test_evaluator.run(train_dl)
             if evaluation_test_monitor is not None:
                 evaluation_test_monitor(test_evaluator)
 

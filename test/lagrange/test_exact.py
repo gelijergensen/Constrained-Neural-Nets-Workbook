@@ -77,10 +77,11 @@ def test_compute_multipliers():
     expected = (constraint.view(-1, 1, 1) -
                 torch.bmm(j_g, j_fT)).view(constraint.size())
 
-    # non-full rank
-    ins = torch.rand(rand_size, requires_grad=True)
-    loss = torch.sum(ins)
-    constraint = torch.stack([ins[0], ins[0]])
+    # non-full rank with batching
+    ins = torch.rand(batch_size, rand_size, requires_grad=True)
+    loss = torch.sum(ins, dim=-1)
+    constraint = torch.stack([ins[:, 0], ins[:, 0]], dim=-1)
 
     with pytest.raises(RuntimeError):
-        con_loss = _compute_multipliers(loss, constraint, [ins], warn="error")
+        con_loss = _compute_multipliers(
+            loss, constraint, [ins], warn="error")

@@ -14,12 +14,14 @@ def _clean_labels(labels):
     return [label.replace("_", " ").capitalize() for label in corrected_labels]
 
 
-def plot_loss(monitors, labels, savefile, title="Losses", ylabel="Average loss", directory="/global/u1/g/gelijerg/Projects/pyinsulate/results"):
+def plot_loss(monitors, labels, savefile, constrained=False, title="Losses", ylabel="Average loss", directory="/global/u1/g/gelijerg/Projects/pyinsulate/results"):
     """Plots several loss curves
 
     :param monitors: a list of monitors, e.g. [training, evaluation]
     :param labels: a list of strings for the label of each monitor
     :param savefile: name of the file to save. If none, then will not save
+    :param constrained: whether to plot the constrained or unconstrained loss.
+        Defaults to unconstrained
     :param title: title of the figure
     :param ylabel: label for the y-axis
     :param directory: directory to save the file in. Defaults to the results dir
@@ -30,14 +32,11 @@ def plot_loss(monitors, labels, savefile, title="Losses", ylabel="Average loss",
 
     all_mean_losses = np.zeros((len(epochs), len(labels)))
     for i, monitor in enumerate(monitors):
-        losses = monitor.mean_loss
+        losses = monitor.mean_loss if not constrained else monitor.constrained_loss
         this_batch_size = monitor.batch_size
 
         all_mean_losses[:, i] = np.array([np.average(loss, weights=batch_size)
                                           for loss, batch_size in zip(losses, this_batch_size)])
-
-    print(epochs)
-    print(all_mean_losses)
 
     fig = plt.figure(figsize=(4, 3))
     plt.plot(epochs, all_mean_losses)
