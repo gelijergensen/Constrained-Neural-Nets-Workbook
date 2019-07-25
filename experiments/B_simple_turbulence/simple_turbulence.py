@@ -16,8 +16,7 @@ import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 
 from pyinsulate.ignite import GradientLoss
-from pyinsulate.losses.pdes import steady_state_turbulence
-from pyinsulate.losses.lossification import lossify, mean_of_sum_of_squares
+from pyinsulate.pdes import steady_state_turbulence
 
 import time
 
@@ -294,19 +293,19 @@ def run_analysis(
         3, 3, convolutional=False, sizes=sizes, activation=activation
     )
     opt = optim.Adam(model.parameters(), lr=0.01)
-    pde_loss = lossify(mean_of_sum_of_squares)(steady_state_turbulence)
+    pde_loss = steady_state_turbulence
     loss = nn.MSELoss()
 
-    trainer = create_trainer(model, opt, loss, pde_loss_fn=pde_loss)
+    trainer = create_trainer(model, opt, loss)
     evaluator = create_evaluator(
         model,
         metrics={
-            "pde": GradientLoss(
-                pde_loss, output_transform=lambda args: (args[2], args[0])
-            ),
+            # "pde": GradientLoss(
+            #     pde_loss, output_transform=lambda args: (args[2], args[0])
+            # ),
             "mse": GradientLoss(
                 loss, output_transform=lambda args: (args[2], args[1])
-            ),
+            )
         },
     )
 
@@ -322,14 +321,14 @@ def run_analysis(
         @trainer.on(Events.ITERATION_COMPLETED)
         def log_training_loss(trainer):
             print(
-                "Epoch[{}] - Total loss: {:.5f} = PDE Loss: {:.5f} + MSE: {:.5f}".format(
+                "Epoch[{}] - Total loss: {:.5f} = MSE: {:.5f}".format(
                     trainer.state.epoch,
                     trainer.state.output,
-                    trainer.state.pde_loss,
+                    # trainer.state.pde_loss,
                     trainer.state.loss,
                 )
             )
 
     trainer.run(train_dl, max_epochs=max_epochs)
-    return (evaluator.state.metrics["pde"], evaluator.state.metrics["mse"])
+    return evaluator.state.metrics["mse"]
 

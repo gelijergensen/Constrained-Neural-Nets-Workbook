@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 
-from pyinsulate.losses.pdes import helmholtz_equation
+from pyinsulate.pdes import helmholtz_equation
 
 
 def test_helmholtz_equation():
