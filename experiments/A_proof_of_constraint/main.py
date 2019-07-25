@@ -75,8 +75,23 @@ def default_configuration():
     }
 
 
+def get_data(configuration, return_equation=False):
+    """Grabs the training and testing dataloaders for this configuration"""
+    return get_singlewave_dataloaders(
+        frequency=configuration["frequency"],
+        phase=configuration["phase"],
+        amplitude=configuration["amplitude"],
+        num_points=configuration["num_points"],
+        num_training=configuration["num_training"],
+        sampling=configuration["training_sampling"],
+        batch_size=configuration["batch_size"],
+        seed=configuration.get("seed", None),
+        return_equation=return_equation,
+    )
+
+
 def build_model_and_optimizer(configuration):
-    """Creates the model, optimizer, loss, and constraint"""
+    """Creates the model, optimizer"""
     model = Dense(
         1,
         1,
@@ -86,9 +101,14 @@ def build_model_and_optimizer(configuration):
     )
     opt = optim.Adam(model.parameters(), lr=configuration["learning_rate"])
     # We need the entire batch of losses, not it's sum
+    return model, opt
+
+
+def get_loss_and_constraint(configuration):
+    """Retrieves the loss and constraint"""
     loss = nn.MSELoss(reduction="none")
     constraint = helmholtz_equation
-    return model, opt, loss, constraint
+    return loss, constraint
 
 
 def run_experiment(
@@ -131,6 +151,12 @@ def run_experiment(
     if should_log:
         log(kwargs)
 
+    # Get the data
+    train_dl, test_dl, parameterization = get_data(kwargs)
+    kwargs.update(
+        parameterization
+    )  # ensures any random variables are specified
+
     # Setup Monitors and Checkpoints
     training_monitor = ProofOfConstraintMonitor()
     evaluation_train_monitor = (
@@ -154,19 +180,9 @@ def run_experiment(
     else:
         checkpointer = None
 
-    # Get the data
-    train_dl, test_dl = get_singlewave_dataloaders(
-        frequency=kwargs["frequency"],
-        phase=kwargs["phase"],
-        amplitude=kwargs["amplitude"],
-        num_points=kwargs["num_points"],
-        num_training=kwargs["num_training"],
-        sampling=kwargs["training_sampling"],
-        batch_size=kwargs["batch_size"],
-    )
-
     # Build the model, optimizer, loss, and constraint
-    model, opt, loss, constraint = build_model_and_optimizer(kwargs)
+    model, opt = build_model_and_optimizer(kwargs)
+    loss, constraint = get_loss_and_constraint(kwargs)
 
     # Setup the metrics to be observed during training and evaluations
 
@@ -241,7 +257,7 @@ def run_experiment(
                 log(
                     f"Epoch[{trainer.state.epoch}] - Evaluating on testing data..."
                 )
-            test_evaluator.run(train_dl)
+            test_evaluator.run(test_dl)
             if evaluation_test_monitor is not None:
                 evaluation_test_monitor(test_evaluator)
 

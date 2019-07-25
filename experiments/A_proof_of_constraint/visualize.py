@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
+DEFAULT_DIRECTORY = "/global/u1/g/gelijerg/Projects/pyinsulate/results"
+
 
 def _clean_labels(labels):
     """Replaces all underscores with spaces and capitalizes first letter"""
@@ -22,7 +24,7 @@ def plot_loss(
     constrained=False,
     title="Losses",
     ylabel="Average loss",
-    directory="/global/u1/g/gelijerg/Projects/pyinsulate/results",
+    directory=DEFAULT_DIRECTORY,
 ):
     """Plots several loss curves
 
@@ -65,7 +67,7 @@ def plot_loss(
     if savefile is not None:
         filepath = f"{directory}/{savefile}.png"
         print(f"Saving loss plot to {filepath}")
-        plt.savefig(filepath)
+        plt.savefig(filepath, dpi=300)
     return fig
 
 
@@ -75,7 +77,7 @@ def plot_constraints(
     savefile,
     title="Constraint magnitude",
     ylabel="Average constraint magnitude",
-    directory="/global/u1/g/gelijerg/Projects/pyinsulate/results",
+    directory=DEFAULT_DIRECTORY,
 ):
     """Plots the magnitude of the constraints
 
@@ -117,7 +119,7 @@ def plot_constraints(
     if savefile is not None:
         filepath = f"{directory}/{savefile}.png"
         print(f"Saving constraint satisfaction plot to {filepath}")
-        plt.savefig(filepath)
+        plt.savefig(filepath, dpi=300)
     return fig
 
 
@@ -126,7 +128,7 @@ def plot_time(
     savefile,
     title="Average computation time per batch",
     xlabel="Milliseconds",
-    directory="/global/u1/g/gelijerg/Projects/pyinsulate/results",
+    directory=DEFAULT_DIRECTORY,
 ):
     """Plots the computation time required for each step as a horizontal bar 
     plot
@@ -162,5 +164,59 @@ def plot_time(
     if savefile is not None:
         filepath = f"{directory}/{savefile}.png"
         print(f"Saving compute time plot to {filepath}")
-        plt.savefig(filepath)
+        plt.savefig(filepath, dpi=300)
     return fig
+
+
+def plot_model_predictions(
+    data,
+    prediction_sets,
+    labels,
+    savefile,
+    title="Model Predictions",
+    xlabel="Input",
+    ylabel="Output",
+    directory=DEFAULT_DIRECTORY,
+):
+    """
+
+    :param data: a tuple (inputs, outputs, is_training) where is_training
+        is a boolean mask for which data samples were training data
+    :param prediction_sets: a list of a list of model predictions (can plot
+        multiple models)
+    :param labels: a list of the labels for each model
+    :param savefile: name of the file to save. If none, then will not save
+    :param title: title of the figure
+    :param xlabel: label for the x-axis
+    :param ylabel: label for the y-axis
+    :param directory: directory to save the file in. Defaults to the results dir
+    :returns: the figure
+    """
+    inputs, outputs, training_mask = data
+
+    # Plot the datapoints
+    fig = plt.figure(figsize=(4, 3))
+    plt.plot(
+        inputs[training_mask], outputs[training_mask], "x", color="#555555"
+    )
+    plt.plot(
+        inputs[np.logical_not(training_mask)],
+        outputs[np.logical_not(training_mask)],
+        "x",
+        color="#BBBBBB",
+    )
+    for i, (predictions, label) in enumerate(zip(prediction_sets, labels)):
+        plt.plot(inputs, prediction_sets[i], "--", label=label)
+    plt.title(title)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.legend()
+
+    plt.tight_layout()
+
+    if savefile is not None:
+        filepath = f"{directory}/{savefile}.png"
+        print(f"Saving loss plot to {filepath}")
+        plt.savefig(filepath, dpi=300)
+    return fig
+
