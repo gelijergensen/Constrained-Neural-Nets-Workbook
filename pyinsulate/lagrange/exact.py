@@ -110,8 +110,8 @@ def _compute_multipliers(loss, constraints, parameters, warn=True, allow_unused=
 
     # Possibly batched version of J(g) * J(g)^T
     gram_matrix = torch.einsum('...ij,...kj->...ik', jac_g, jac_g)
-    untransformed_multipliers = - (constraints -
-                                   torch.einsum('...ij,...j->...i', jac_g, jac_fT)).unsqueeze(-1)
+    untransformed_multipliers = (constraints -
+                                 torch.einsum('...ij,...j->...i', jac_g, jac_fT)).unsqueeze(-1)
 
     try:
         # We do this this way because there is some chance we can provide this externally later

@@ -50,9 +50,14 @@ def create_engine(model, loss_fn, constraint_fn, optimizer=None, metrics=None, m
         training
     :param method: method to use for constraining. Should be one of
         "average" - compute average (along batch) of constrained update
-        "batchwise" - compute constrained update of mean loss with respect to 
+        "batchwise" - compute constrained update of mean loss with respect to
             all constraints within the batch
         "unconstrained" - don't constrain. Used as a control method
+        "no-loss" - intended entirely for debugging. Ignores the loss function
+            entirely and just tries to satisfy the constraints
+        "non-projecting" - the sum of "no-loss" and "unconstrained". This 
+            destroys the exponential convergence guarantee, but should be useful
+            for debugging
     :param constraint_kwargs: all other parameters will be passed along to the
         constraint function
     :returns: an ignite.engine.Engine whose output is (xb, yb, out) for every
@@ -88,6 +93,9 @@ def create_engine(model, loss_fn, constraint_fn, optimizer=None, metrics=None, m
             last = getattr(engine.state, "last", None)
             if last is not None and len(engine.state.out) == len(last) and torch.allclose(engine.state.out, last):
                 print("WARNING! Just outputting same thing!")
+                print(f"xb: {engine.state.xb}")
+                print(f'yb: {engine.state.yb}')
+                print(f'out: {engine.state.out}')
             engine.state.last = engine.state.out
             if torch.allclose(engine.state.out, engine.state.out.new_zeros(engine.state.out.size())):
                 print("WARNING! Training is failing")
@@ -116,6 +124,22 @@ def create_engine(model, loss_fn, constraint_fn, optimizer=None, metrics=None, m
             engine.state.multipliers = engine.state.constraints.new_zeros(
                 engine.state.constraints.size())
             engine.state.constrained_loss = torch.mean(engine.state.loss)
+        elif method == "no-loss":
+            engine.state.constrained_loss, engine.state.multipliers = average_constrained_loss(
+                engine.state.loss.new_zeros(
+                    engine.state.loss.size()).requires_grad_(),
+                engine.state.constraints, list(model.parameters()),
+                return_multipliers=True
+            )
+        elif method == "non-projecting":
+            correction_term, engine.state.multipliers = average_constrained_loss(
+                engine.state.loss.new_zeros(
+                    engine.state.loss.size()).requires_grad_(),
+                engine.state.constraints, list(model.parameters()),
+                return_multipliers=True
+            )
+            engine.state.constrained_loss = torch.mean(
+                engine.state.loss) + correction_term
         else:
             raise ValueError(f"Method {method} not known. Please respecify")
         section_start = end_section(
