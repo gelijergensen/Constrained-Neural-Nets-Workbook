@@ -99,6 +99,8 @@ def create_engine(
         if optimizer is not None:
             model.train()
             optimizer.zero_grad()
+        else:
+            model.eval()
         engine.state.xb, engine.state.yb = prepare_batch(batch)
         section_start = end_section(
             engine, Sub_Batch_Events.DATA_LOADED, section_start
