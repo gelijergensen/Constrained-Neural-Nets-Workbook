@@ -17,17 +17,16 @@ class Mnist_Logistic(nn.Module):
 
 
 class EpochMonitor(Monitor):
-
     def __init__(self):
         super().__init__()
 
-        self.add('epoch')
-        self.add('avg_epoch', average=True)
+        self.add("epoch")
+        self.add("avg_epoch", average=True)
 
     def __call__(self, engine):
         epoch = float(engine.state.epoch)
-        self.set('epoch', epoch)
-        self.set('avg_epoch', epoch)
+        self.set("epoch", epoch)
+        self.set("avg_epoch", epoch)
 
 
 def test_monitor():
@@ -44,9 +43,13 @@ def test_monitor():
 
     num_epochs = 1
     trainer.run(train_dl, max_epochs=num_epochs)
-    assert(len(epoch_logger.epoch) == num_epochs)
-    assert(all([all(epoch == i+1 for epoch in epoch_logger.epoch[i])
-                for i in range(num_epochs)]))
-    assert(all(epoch == i+1 for i, epoch in enumerate(epoch_logger.avg_epoch)))
-    assert(len(list(iter(epoch_logger))) == 2)
-    assert(next(iter(epoch_logger)) == 'epoch')
+    assert len(epoch_logger.epoch) == num_epochs
+    assert all(
+        [
+            all(epoch == i + 1 for epoch in epoch_logger.epoch[i])
+            for i in range(num_epochs)
+        ]
+    )
+    assert all(epoch == i + 1 for i, epoch in enumerate(epoch_logger.avg_epoch))
+    assert len(list(iter(epoch_logger))) == 2
+    assert next(iter(epoch_logger)) == "epoch"

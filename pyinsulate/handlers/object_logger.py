@@ -32,8 +32,10 @@ class ObjectLogger(object):
         try:
             self.values.append(self.retrieve_fn(engine))
         except Exception as e:
-            print("Unable to retrieve object from the state using %s" %
-                  self.retrieve_fn.__name__)
+            print(
+                "Unable to retrieve object from the state using %s"
+                % self.retrieve_fn.__name__
+            )
             traceback.print_exc()
 
     def clear(self):

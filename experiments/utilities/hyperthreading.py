@@ -1,7 +1,14 @@
 import multiprocessing
 
 
-def perform_multiprocessed(initialize, init_args, function, fn_args, finalize, nproc=multiprocessing.cpu_count()):
+def perform_multiprocessed(
+    initialize,
+    init_args,
+    function,
+    fn_args,
+    finalize,
+    nproc=multiprocessing.cpu_count(),
+):
     """Performs a given function multiprocessed
 
     :param initialize: a function which produces an initial state. Called by 
@@ -16,6 +23,8 @@ def perform_multiprocessed(initialize, init_args, function, fn_args, finalize, n
     :param nproc: number of processes. Defaults to the number of cpus
     :returns: result
     """
-    with multiprocessing.Pool(nproc, initializer=initialize, initargs=init_args, maxtasksperchild=1000) as pool:
+    with multiprocessing.Pool(
+        nproc, initializer=initialize, initargs=init_args, maxtasksperchild=1000
+    ) as pool:
         result = pool.map(function, fn_args)
     return finalize(result)

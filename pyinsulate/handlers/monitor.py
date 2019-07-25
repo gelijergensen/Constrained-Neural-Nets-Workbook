@@ -48,8 +48,9 @@ class Monitor(object):
                 getattr(self, key)[-1] = value
             else:
                 old_value = self.get(key, -1)
-                new_value = (old_value * self._counts[key] + value) / \
-                    (self._counts[key] + 1)
+                new_value = (old_value * self._counts[key] + value) / (
+                    self._counts[key] + 1
+                )
                 getattr(self, key)[-1] = new_value
             self._counts[key] += 1
         else:

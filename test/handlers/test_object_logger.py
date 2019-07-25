@@ -34,4 +34,4 @@ def test_object_logger():
 
     trainer.run(train_dl, max_epochs=1)
 
-    assert(len(epoch_logger.values) == 1)
+    assert len(epoch_logger.values) == 1

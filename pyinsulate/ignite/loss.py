@@ -29,8 +29,12 @@ class GradientLoss(GradientMetric):
 
     """
 
-    def __init__(self, loss_fn, output_transform=lambda x: x,
-                 batch_size=lambda x: x.shape[0]):
+    def __init__(
+        self,
+        loss_fn,
+        output_transform=lambda x: x,
+        batch_size=lambda x: x.shape[0],
+    ):
         super(GradientLoss, self).__init__(output_transform)
         self._loss_fn = loss_fn
         self._batch_size = batch_size
@@ -48,7 +52,7 @@ class GradientLoss(GradientMetric):
         average_loss = self._loss_fn(y_pred, y, **kwargs)
 
         if len(average_loss.shape) != 0:
-            raise ValueError('loss_fn did not return the average loss.')
+            raise ValueError("loss_fn did not return the average loss.")
 
         N = self._batch_size(y)
         self._sum += average_loss.item() * N
@@ -57,5 +61,6 @@ class GradientLoss(GradientMetric):
     def compute(self):
         if self._num_examples == 0:
             raise NotComputableError(
-                'Loss must have at least one example before it can be computed.')
+                "Loss must have at least one example before it can be computed."
+            )
         return self._sum / self._num_examples

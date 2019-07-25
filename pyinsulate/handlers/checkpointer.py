@@ -23,12 +23,15 @@ class Checkpointer(object):
         if not os.path.exists(dirname):
             os.makedirs(dirname)
 
-        matched = [fname
-                   for fname in os.listdir(self._dirname)
-                   if fname.startswith(self._filename_base)]
+        matched = [
+            fname
+            for fname in os.listdir(self._dirname)
+            if fname.startswith(self._filename_base)
+        ]
         if len(matched) > 0:
             raise ValueError(
-                f"Files found matching {self._filename_base} in {self._dirname}. Cowardly refusing to construct new checkpointer and overwrite old files")
+                f"Files found matching {self._filename_base} in {self._dirname}. Cowardly refusing to construct new checkpointer and overwrite old files"
+            )
 
     def attach(self, engine):
         engine.add_event_handler(Events.EPOCH_COMPLETED, self.__call__)

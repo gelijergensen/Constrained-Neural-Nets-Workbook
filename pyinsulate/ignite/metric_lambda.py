@@ -57,23 +57,35 @@ class GradientMetricsLambda(GradientMetric):
         pass
 
     def compute(self):
-        materialized = [i.compute() if isinstance(i, GradientMetric)
-                        else i for i in self.args]
-        materialized_kwargs = {k: (v.compute() if isinstance(
-            v, GradientMetric) else v) for k, v in self.kwargs.items()}
+        materialized = [
+            i.compute() if isinstance(i, GradientMetric) else i
+            for i in self.args
+        ]
+        materialized_kwargs = {
+            k: (v.compute() if isinstance(v, GradientMetric) else v)
+            for k, v in self.kwargs.items()
+        }
         return self.function(*materialized, **materialized_kwargs)
 
     def _internal_attach(self, engine):
-        for index, metric in enumerate(itertools.chain(self.args, self.kwargs.values())):
+        for index, metric in enumerate(
+            itertools.chain(self.args, self.kwargs.values())
+        ):
             if isinstance(metric, GradientMetricsLambda):
                 metric._internal_attach(engine)
             elif isinstance(metric, GradientMetric):
-                if not engine.has_event_handler(metric.started, Events.EPOCH_STARTED):
+                if not engine.has_event_handler(
+                    metric.started, Events.EPOCH_STARTED
+                ):
                     engine.add_event_handler(
-                        Events.EPOCH_STARTED, metric.started)
-                if not engine.has_event_handler(metric.iteration_completed, Events.ITERATION_COMPLETED):
+                        Events.EPOCH_STARTED, metric.started
+                    )
+                if not engine.has_event_handler(
+                    metric.iteration_completed, Events.ITERATION_COMPLETED
+                ):
                     engine.add_event_handler(
-                        Events.ITERATION_COMPLETED, metric.iteration_completed)
+                        Events.ITERATION_COMPLETED, metric.iteration_completed
+                    )
 
     def attach(self, engine, name):
         # recursively attach all its dependencies

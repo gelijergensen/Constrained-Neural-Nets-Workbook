@@ -24,15 +24,18 @@ def abs_value_decorator(fn):
     @functools.wraps(fn)
     def decorated(*args, **kwargs):
         return torch.abs(fn(*args, **kwargs))
+
     return decorated
 
 
 def mean_absolute_value_decorator(fn):
     """Take mean of abs along batch dimension"""
+
     @functools.wraps(fn)
     def decorated(*args, **kwargs):
         return fn(*args, **kwargs)
         # return torch.mean(torch.abs(fn(*args, **kwargs)), dim=0)
+
     return decorated
 
 
@@ -57,34 +60,47 @@ def default_configuration():
     method: method to use for constraining. See the event loop for more details
     """
     return {
-        'frequency': 1.0,
-        'phase': None,
-        'amplitude': 1.0,
-        'num_points': 100000,
-        'num_training': 100,
-        'training_sampling': "start",
-        'batch_size': 32,
-        'model_size': [20],
-        'model_act': nn.ReLU(),
-        'model_final_act': None,
-        'learning_rate': 0.01,
-        'method': "average",
+        "frequency": 1.0,
+        "phase": None,
+        "amplitude": 1.0,
+        "num_points": 100000,
+        "num_training": 100,
+        "training_sampling": "start",
+        "batch_size": 32,
+        "model_size": [20],
+        "model_act": nn.ReLU(),
+        "model_final_act": None,
+        "learning_rate": 0.01,
+        "method": "average",
     }
 
 
 def build_model_and_optimizer(configuration):
     """Creates the model, optimizer, loss, and constraint"""
-    model = Dense(1, 1, sizes=configuration['model_size'],
-                  activation=configuration['model_act'],
-                  final_activation=configuration['model_final_act'])
-    opt = optim.Adam(model.parameters(), lr=configuration['learning_rate'])
+    model = Dense(
+        1,
+        1,
+        sizes=configuration["model_size"],
+        activation=configuration["model_act"],
+        final_activation=configuration["model_final_act"],
+    )
+    opt = optim.Adam(model.parameters(), lr=configuration["learning_rate"])
     # We need the entire batch of losses, not it's sum
-    loss = nn.MSELoss(reduction='none')
+    loss = nn.MSELoss(reduction="none")
     constraint = helmholtz_equation
     return model, opt, loss, constraint
 
 
-def run_experiment(max_epochs, log=None, evaluate_training=True, evaluate_testing=True, save_directory=".", save_file=None, save_interval=1, **configuration):
+def run_experiment(
+    max_epochs,
+    log=None,
+    evaluate_training=True,
+    evaluate_testing=True,
+    save_directory=".",
+    save_file=None,
+    save_interval=1,
+    **configuration,
+):
     """Runs the Proof of Constraint experiment with the given configuration
 
     :param max_epochs: number of epochs to run the experiment
@@ -117,22 +133,36 @@ def run_experiment(max_epochs, log=None, evaluate_training=True, evaluate_testin
 
     # Setup Monitors and Checkpoints
     training_monitor = ProofOfConstraintMonitor()
-    evaluation_train_monitor = ProofOfConstraintMonitor() if evaluate_training else None
-    evaluation_test_monitor = ProofOfConstraintMonitor() if evaluate_testing else None
+    evaluation_train_monitor = (
+        ProofOfConstraintMonitor() if evaluate_training else None
+    )
+    evaluation_test_monitor = (
+        ProofOfConstraintMonitor() if evaluate_testing else None
+    )
     if should_checkpoint:
         checkpointer = ModelAndMonitorCheckpointer(
-            save_directory, save_file, kwargs,
-            [training_monitor, evaluation_train_monitor, evaluation_test_monitor],
-            save_interval=save_interval
+            save_directory,
+            save_file,
+            kwargs,
+            [
+                training_monitor,
+                evaluation_train_monitor,
+                evaluation_test_monitor,
+            ],
+            save_interval=save_interval,
         )
     else:
         checkpointer = None
 
     # Get the data
     train_dl, test_dl = get_singlewave_dataloaders(
-        frequency=kwargs['frequency'], phase=kwargs['phase'], amplitude=kwargs['amplitude'],
-        num_points=kwargs['num_points'], num_training=kwargs['num_training'], sampling=kwargs['training_sampling'],
-        batch_size=kwargs['batch_size'],
+        frequency=kwargs["frequency"],
+        phase=kwargs["phase"],
+        amplitude=kwargs["amplitude"],
+        num_points=kwargs["num_points"],
+        num_training=kwargs["num_training"],
+        sampling=kwargs["training_sampling"],
+        batch_size=kwargs["batch_size"],
     )
 
     # Build the model, optimizer, loss, and constraint
@@ -155,22 +185,38 @@ def run_experiment(max_epochs, log=None, evaluate_training=True, evaluate_testin
 
     # This is the trainer because we provide the optimizer
     trainer = create_engine(
-        model, loss, constraint, opt, metrics=get_metrics(),
-        monitor=training_monitor, method=kwargs['method'], k=kwargs['frequency']
+        model,
+        loss,
+        constraint,
+        opt,
+        metrics=get_metrics(),
+        monitor=training_monitor,
+        method=kwargs["method"],
+        k=kwargs["frequency"],
     )
 
     # These are not trainers because we don't provide the optimizer
     if evaluate_training:
         train_evaluator = create_engine(
-            model, loss, constraint, metrics=get_metrics(),
-            monitor=evaluation_train_monitor, method=kwargs['method'], k=kwargs['frequency']
+            model,
+            loss,
+            constraint,
+            metrics=get_metrics(),
+            monitor=evaluation_train_monitor,
+            method=kwargs["method"],
+            k=kwargs["frequency"],
         )
     else:
         train_evaluator = None
     if evaluate_testing:
         test_evaluator = create_engine(
-            model, loss, constraint, metrics=get_metrics(),
-            monitor=evaluation_test_monitor, method=kwargs['method'], k=kwargs['frequency']
+            model,
+            loss,
+            constraint,
+            metrics=get_metrics(),
+            monitor=evaluation_test_monitor,
+            method=kwargs["method"],
+            k=kwargs["frequency"],
         )
     else:
         test_evaluator = None
@@ -183,14 +229,18 @@ def run_experiment(max_epochs, log=None, evaluate_training=True, evaluate_testin
 
         if evaluate_training:
             if should_log:
-                log(f"Epoch[{trainer.state.epoch}] - Evaluating on training data...")
+                log(
+                    f"Epoch[{trainer.state.epoch}] - Evaluating on training data..."
+                )
             train_evaluator.run(train_dl)
             if evaluation_train_monitor is not None:
                 evaluation_train_monitor(train_evaluator)
 
         if evaluate_testing:
             if should_log:
-                log(f"Epoch[{trainer.state.epoch}] - Evaluating on testing data...")
+                log(
+                    f"Epoch[{trainer.state.epoch}] - Evaluating on testing data..."
+                )
             test_evaluator.run(train_dl)
             if evaluation_test_monitor is not None:
                 evaluation_test_monitor(test_evaluator)
@@ -199,10 +249,16 @@ def run_experiment(max_epochs, log=None, evaluate_training=True, evaluate_testin
             checkpointer(trainer)
 
     if should_log:
+
         @trainer.on(Events.ITERATION_COMPLETED)
         def log_batch_summary(trainer):
-            log("Epoch[{}] - Constrained loss: {:.5f}, Loss: {:.5f}".format(
-                trainer.state.epoch, trainer.state.constrained_loss, trainer.state.mean_loss))
+            log(
+                "Epoch[{}] - Constrained loss: {:.5f}, Loss: {:.5f}".format(
+                    trainer.state.epoch,
+                    trainer.state.constrained_loss,
+                    trainer.state.mean_loss,
+                )
+            )
 
     trainer.run(train_dl, max_epochs=max_epochs)
 
@@ -210,4 +266,9 @@ def run_experiment(max_epochs, log=None, evaluate_training=True, evaluate_testin
     if should_checkpoint:
         checkpointer.retrieve_and_save(trainer)
 
-    return kwargs, (trainer, train_evaluator, test_evaluator), (training_monitor, evaluation_train_monitor, evaluation_test_monitor)
+    return (
+        kwargs,
+        (trainer, train_evaluator, test_evaluator),
+        (training_monitor, evaluation_train_monitor, evaluation_test_monitor),
+    )
+

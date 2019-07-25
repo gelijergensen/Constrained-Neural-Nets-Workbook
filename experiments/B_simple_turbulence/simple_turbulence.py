@@ -3,6 +3,7 @@ to turbulence with a neural network"""
 
 import functools
 from ignite.engine import Engine, Events
+
 # from ignite.metrics import Loss
 from ignite.utils import convert_tensor
 import numpy as np
@@ -21,12 +22,14 @@ from pyinsulate.losses.lossification import lossify, mean_of_sum_of_squares
 import time
 
 
-def load_data(filepath, num_training, num_testing=None, batch_size=32, just_datasets=False):
+def load_data(
+    filepath, num_training, num_testing=None, batch_size=32, just_datasets=False
+):
     if num_testing is None:
-        num_testing = 128*128*128 - num_training
-    all_indices = np.random.permutation(128*128*128)
+        num_testing = 128 * 128 * 128 - num_training
+    all_indices = np.random.permutation(128 * 128 * 128)
     train_idxs = all_indices[:num_training]
-    test_idxs = all_indices[num_training:num_training+num_testing]
+    test_idxs = all_indices[num_training : num_training + num_testing]
 
     train_set = ProofOfConceptDataset(filepath, train_idxs)
     test_set = ProofOfConceptDataset(filepath, test_idxs)
@@ -69,13 +72,16 @@ class ProofOfConceptDataset(Dataset):
 
         data = np.load(filepath).astype(np.float32)
         velocity = torch.from_numpy(data).view(-1, 3)
-        position = torch.stack(torch.meshgrid(
-            [
-                torch.linspace(-0.5, 0.5, 128),
-                torch.linspace(-0.5, 0.5, 128),
-                torch.linspace(-0.5, 0.5, 128)
-            ]
-        ), dim=-1).view(-1, 3)
+        position = torch.stack(
+            torch.meshgrid(
+                [
+                    torch.linspace(-0.5, 0.5, 128),
+                    torch.linspace(-0.5, 0.5, 128),
+                    torch.linspace(-0.5, 0.5, 128),
+                ]
+            ),
+            dim=-1,
+        ).view(-1, 3)
 
         self.cached_data[filepath] = (position, velocity)
         return (position, velocity)
@@ -100,7 +106,14 @@ class PINN(nn.Module):
         else:
             return nn.Linear(in_size, out_size)
 
-    def __init__(self, in_size, out_size, sizes=None, convolutional=False, activation=nn.LeakyReLU(0.01)):
+    def __init__(
+        self,
+        in_size,
+        out_size,
+        sizes=None,
+        convolutional=False,
+        activation=nn.LeakyReLU(0.01),
+    ):
         super().__init__()
         if sizes is None:
             sizes = [20, 20, 20, 20, 20]
@@ -108,12 +121,20 @@ class PINN(nn.Module):
         self.act = activation
         self.layer0 = self.get_layer(in_size, sizes[0], conv=self.conv)
         for i in range(1, len(sizes)):
-            setattr(self, f'layer{i}',
-                    self.get_layer(sizes[i-1], sizes[i], conv=self.conv))
-        setattr(self, f'layer{len(sizes)}',
-                self.get_layer(sizes[-1], out_size, conv=self.conv))
+            setattr(
+                self,
+                f"layer{i}",
+                self.get_layer(sizes[i - 1], sizes[i], conv=self.conv),
+            )
+        setattr(
+            self,
+            f"layer{len(sizes)}",
+            self.get_layer(sizes[-1], out_size, conv=self.conv),
+        )
 
-        self.layers = [getattr(self, f'layer{i}') for i in range(len(sizes)+1)]
+        self.layers = [
+            getattr(self, f"layer{i}") for i in range(len(sizes) + 1)
+        ]
 
     def forward(self, xb):
 
@@ -145,7 +166,14 @@ class ResPINN(nn.Module):
         else:
             return nn.Linear(in_size, out_size)
 
-    def __init__(self, in_size, out_size, sizes=None, convolutional=False, activation=nn.LeakyReLU(0.01)):
+    def __init__(
+        self,
+        in_size,
+        out_size,
+        sizes=None,
+        convolutional=False,
+        activation=nn.LeakyReLU(0.01),
+    ):
         super().__init__()
         if sizes is None:
             sizes = [[20, 20, 20], [20, 20, 20]]
@@ -154,16 +182,29 @@ class ResPINN(nn.Module):
         first_size = in_size
         self.blocks = list()
         for b, block in enumerate(sizes):
-            setattr(self, f'block{b}_layer0',
-                    self.get_layer(first_size, block[0], conv=self.conv))
+            setattr(
+                self,
+                f"block{b}_layer0",
+                self.get_layer(first_size, block[0], conv=self.conv),
+            )
             first_size = out_size
             for i in range(1, len(block)):
-                setattr(self, f'block{b}_layer{i}',
-                        self.get_layer(block[i-1], block[i], conv=self.conv))
-            setattr(self, f'block{b}_layer{len(block)}',
-                    self.get_layer(block[-1], out_size, conv=self.conv))
+                setattr(
+                    self,
+                    f"block{b}_layer{i}",
+                    self.get_layer(block[i - 1], block[i], conv=self.conv),
+                )
+            setattr(
+                self,
+                f"block{b}_layer{len(block)}",
+                self.get_layer(block[-1], out_size, conv=self.conv),
+            )
             self.blocks.append(
-                [getattr(self, f'block{b}_layer{i}') for i in range(len(block)+1)])
+                [
+                    getattr(self, f"block{b}_layer{i}")
+                    for i in range(len(block) + 1)
+                ]
+            )
 
     def forward(self, xb):
 
@@ -193,11 +234,13 @@ class ResPINN(nn.Module):
 
 def prepare_batch(batch, device=None, non_blocking=False):
     """Prepare batch for training: pass to a device with options."""
-    return tuple(convert_tensor(x, device=device, non_blocking=non_blocking) for x in batch)
+    return tuple(
+        convert_tensor(x, device=device, non_blocking=non_blocking)
+        for x in batch
+    )
 
 
 def create_trainer(model, optimizer, loss_fn, pde_loss_fn=None):
-
     def _update(engine, batch):
         model.train()
         optimizer.zero_grad()
@@ -223,7 +266,6 @@ def create_trainer(model, optimizer, loss_fn, pde_loss_fn=None):
 
 
 def create_evaluator(model, metrics):
-
     def _inference(engine, batch):
         model.eval()
         with torch.enable_grad():  # we need the gradient for the metrics
@@ -239,25 +281,33 @@ def create_evaluator(model, metrics):
     return engine
 
 
-def run_analysis(train_dl, test_dl, sizes, activation, logging=False, max_epochs=20):
+def run_analysis(
+    train_dl, test_dl, sizes, activation, logging=False, max_epochs=20
+):
     try:
         iter(sizes[0])
         model_fn = ResPINN
     except Exception:
         # not iterable
         model_fn = PINN
-    model = model_fn(3, 3, convolutional=False,
-                     sizes=sizes, activation=activation)
+    model = model_fn(
+        3, 3, convolutional=False, sizes=sizes, activation=activation
+    )
     opt = optim.Adam(model.parameters(), lr=0.01)
     pde_loss = lossify(mean_of_sum_of_squares)(steady_state_turbulence)
     loss = nn.MSELoss()
 
     trainer = create_trainer(model, opt, loss, pde_loss_fn=pde_loss)
     evaluator = create_evaluator(
-        model, metrics={
-            'pde': GradientLoss(pde_loss, output_transform=lambda args: (args[2], args[0])),
-            'mse': GradientLoss(loss, output_transform=lambda args: (args[2], args[1]))
-        }
+        model,
+        metrics={
+            "pde": GradientLoss(
+                pde_loss, output_transform=lambda args: (args[2], args[0])
+            ),
+            "mse": GradientLoss(
+                loss, output_transform=lambda args: (args[2], args[1])
+            ),
+        },
     )
 
     @trainer.on(Events.EPOCH_COMPLETED)
@@ -265,13 +315,21 @@ def run_analysis(train_dl, test_dl, sizes, activation, logging=False, max_epochs
         evaluator.run(test_dl)
         if logging:
             metrics = evaluator.state.metrics
-            print(metrics['pde'], metrics['mse'])
+            print(metrics["pde"], metrics["mse"])
 
     if logging:
+
         @trainer.on(Events.ITERATION_COMPLETED)
         def log_training_loss(trainer):
-            print("Epoch[{}] - Total loss: {:.5f} = PDE Loss: {:.5f} + MSE: {:.5f}".format(
-                trainer.state.epoch, trainer.state.output, trainer.state.pde_loss, trainer.state.loss))
+            print(
+                "Epoch[{}] - Total loss: {:.5f} = PDE Loss: {:.5f} + MSE: {:.5f}".format(
+                    trainer.state.epoch,
+                    trainer.state.output,
+                    trainer.state.pde_loss,
+                    trainer.state.loss,
+                )
+            )
 
     trainer.run(train_dl, max_epochs=max_epochs)
-    return (evaluator.state.metrics['pde'], evaluator.state.metrics['mse'])
+    return (evaluator.state.metrics["pde"], evaluator.state.metrics["mse"])
+

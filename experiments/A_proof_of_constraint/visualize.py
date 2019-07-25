@@ -9,12 +9,21 @@ def _clean_labels(labels):
     """Replaces all underscores with spaces and capitalizes first letter"""
 
     corrected_labels = [
-        (label if label != "step_optimizer" else "backward_pass") for label in labels
+        (label if label != "step_optimizer" else "backward_pass")
+        for label in labels
     ]
     return [label.replace("_", " ").capitalize() for label in corrected_labels]
 
 
-def plot_loss(monitors, labels, savefile, constrained=False, title="Losses", ylabel="Average loss", directory="/global/u1/g/gelijerg/Projects/pyinsulate/results"):
+def plot_loss(
+    monitors,
+    labels,
+    savefile,
+    constrained=False,
+    title="Losses",
+    ylabel="Average loss",
+    directory="/global/u1/g/gelijerg/Projects/pyinsulate/results",
+):
     """Plots several loss curves
 
     :param monitors: a list of monitors, e.g. [training, evaluation]
@@ -32,11 +41,17 @@ def plot_loss(monitors, labels, savefile, constrained=False, title="Losses", yla
 
     all_mean_losses = np.zeros((len(epochs), len(labels)))
     for i, monitor in enumerate(monitors):
-        losses = monitor.mean_loss if not constrained else monitor.constrained_loss
+        losses = (
+            monitor.mean_loss if not constrained else monitor.constrained_loss
+        )
         this_batch_size = monitor.batch_size
 
-        all_mean_losses[:, i] = np.array([np.average(loss, weights=batch_size)
-                                          for loss, batch_size in zip(losses, this_batch_size)])
+        all_mean_losses[:, i] = np.array(
+            [
+                np.average(loss, weights=batch_size)
+                for loss, batch_size in zip(losses, this_batch_size)
+            ]
+        )
 
     fig = plt.figure(figsize=(4, 3))
     plt.plot(epochs, all_mean_losses)
@@ -54,7 +69,14 @@ def plot_loss(monitors, labels, savefile, constrained=False, title="Losses", yla
     return fig
 
 
-def plot_constraints(monitors, labels, savefile, title="Constraint magnitude", ylabel="Average constraint magnitude", directory="/global/u1/g/gelijerg/Projects/pyinsulate/results"):
+def plot_constraints(
+    monitors,
+    labels,
+    savefile,
+    title="Constraint magnitude",
+    ylabel="Average constraint magnitude",
+    directory="/global/u1/g/gelijerg/Projects/pyinsulate/results",
+):
     """Plots the magnitude of the constraints
 
     :param monitors: a list of monitors, e.g. [training, evaluation]
@@ -73,11 +95,15 @@ def plot_constraints(monitors, labels, savefile, title="Constraint magnitude", y
         constraints = monitor.constraints
         batch_sizes = monitor.batch_size
 
-        all_mean_constraints[:, i] = np.array([
-            np.average([torch.norm(con).item()
-                        for con in constraint], weights=batch_size)
-            for constraint, batch_size in zip(constraints, batch_sizes)
-        ])
+        all_mean_constraints[:, i] = np.array(
+            [
+                np.average(
+                    [torch.norm(con).item() for con in constraint],
+                    weights=batch_size,
+                )
+                for constraint, batch_size in zip(constraints, batch_sizes)
+            ]
+        )
 
     fig = plt.figure(figsize=(4, 3))
     plt.plot(epochs, all_mean_constraints)
@@ -95,7 +121,13 @@ def plot_constraints(monitors, labels, savefile, title="Constraint magnitude", y
     return fig
 
 
-def plot_time(monitor, savefile, title="Average computation time per batch", xlabel="Milliseconds", directory="/global/u1/g/gelijerg/Projects/pyinsulate/results"):
+def plot_time(
+    monitor,
+    savefile,
+    title="Average computation time per batch",
+    xlabel="Milliseconds",
+    directory="/global/u1/g/gelijerg/Projects/pyinsulate/results",
+):
     """Plots the computation time required for each step as a horizontal bar 
     plot
 

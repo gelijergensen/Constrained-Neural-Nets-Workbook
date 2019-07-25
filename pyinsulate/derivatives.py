@@ -4,8 +4,13 @@ import torch
 from torch import autograd
 
 
-__all__ = ["jacobian", "jacobian_and_hessian", "trace", "divergence",
-           "jacobian_and_laplacian"]
+__all__ = [
+    "jacobian",
+    "jacobian_and_hessian",
+    "trace",
+    "divergence",
+    "jacobian_and_laplacian",
+]
 
 
 def _get_size(tensor):
@@ -27,16 +32,40 @@ def _jacobian(outputs, inputs, create_graph, allow_unused):
         containing the jacobians of outputs with respect to inputs
     """
 
-    jacs = [outputs.new_zeros((*_get_size(outputs), *_get_size(ins))).view(-1, *_get_size(ins))
-            for ins in inputs]
+    jacs = [
+        outputs.new_zeros((*_get_size(outputs), *_get_size(ins))).view(
+            -1, *_get_size(ins)
+        )
+        for ins in inputs
+    ]
     for i, out in enumerate(outputs.view(-1)):
-        cols_i = autograd.grad(out, inputs, retain_graph=True,
-                               create_graph=create_graph, allow_unused=allow_unused)
+        cols_i = autograd.grad(
+            out,
+            inputs,
+            retain_graph=True,
+            create_graph=create_graph,
+            allow_unused=allow_unused,
+        )
 
-        cols_A = [autograd.grad(out, ins, retain_graph=True,
-                                create_graph=create_graph, allow_unused=allow_unused)[0] for ins in inputs]
-        cols_B = list(autograd.grad(out, inputs, retain_graph=True,
-                                    create_graph=create_graph, allow_unused=allow_unused))
+        cols_A = [
+            autograd.grad(
+                out,
+                ins,
+                retain_graph=True,
+                create_graph=create_graph,
+                allow_unused=allow_unused,
+            )[0]
+            for ins in inputs
+        ]
+        cols_B = list(
+            autograd.grad(
+                out,
+                inputs,
+                retain_graph=True,
+                create_graph=create_graph,
+                allow_unused=allow_unused,
+            )
+        )
 
         for j, col_i in enumerate(cols_i):
             if col_i is None:
@@ -69,13 +98,22 @@ def _batched_jacobian(outputs, inputs, create_graph, allow_unused):
     batchsize = _get_size(outputs)[0]
     outsize = _get_size(outputs)[1:]
 
-    jacs = [outputs.new_zeros(
-            (batchsize, *outsize, *_get_size(ins)[1:])
-            ).view(batchsize, -1, *_get_size(ins)[1:]) for ins in inputs]
+    jacs = [
+        outputs.new_zeros((batchsize, *outsize, *_get_size(ins)[1:])).view(
+            batchsize, -1, *_get_size(ins)[1:]
+        )
+        for ins in inputs
+    ]
     flat_out = outputs.reshape(batchsize, -1)
     for i in range(flat_out.size()[1]):
-        cols_i = autograd.grad(flat_out[:, i], inputs, grad_outputs=torch.eye(batchsize), retain_graph=True,
-                               create_graph=create_graph, allow_unused=allow_unused)
+        cols_i = autograd.grad(
+            flat_out[:, i],
+            inputs,
+            grad_outputs=torch.eye(batchsize),
+            retain_graph=True,
+            create_graph=create_graph,
+            allow_unused=allow_unused,
+        )
         for j, col_i in enumerate(cols_i):
             if col_i is None:
                 # this element of output doesn't depend on the inputs, so leave gradient 0
@@ -108,22 +146,34 @@ def jacobian(outs, ins, batched=False, create_graph=False, allow_unused=False):
     """
     if isinstance(ins, list) or isinstance(ins, tuple):
         if batched:
-            return _batched_jacobian(outs, ins, create_graph=create_graph,
-                                     allow_unused=allow_unused)
+            return _batched_jacobian(
+                outs, ins, create_graph=create_graph, allow_unused=allow_unused
+            )
         else:
-            return _jacobian(outs, ins, create_graph=create_graph,
-                             allow_unused=allow_unused)
+            return _jacobian(
+                outs, ins, create_graph=create_graph, allow_unused=allow_unused
+            )
     else:
         ins_list = [ins]
         if batched:
-            return _batched_jacobian(outs, ins_list, create_graph=create_graph,
-                                     allow_unused=allow_unused)[0]
+            return _batched_jacobian(
+                outs,
+                ins_list,
+                create_graph=create_graph,
+                allow_unused=allow_unused,
+            )[0]
         else:
-            return _jacobian(outs, ins_list, create_graph=create_graph,
-                             allow_unused=allow_unused)[0]
+            return _jacobian(
+                outs,
+                ins_list,
+                create_graph=create_graph,
+                allow_unused=allow_unused,
+            )[0]
 
 
-def jacobian_and_hessian(outs, ins, batched=False, create_graph=False, allow_unused=False):
+def jacobian_and_hessian(
+    outs, ins, batched=False, create_graph=False, allow_unused=False
+):
     """Computes the jacobian and the hessian of outs with respect to ins
 
     :param outs: output of some tensor function
@@ -136,14 +186,28 @@ def jacobian_and_hessian(outs, ins, batched=False, create_graph=False, allow_unu
         any of outs
     :returns jacobian, hessian, which are lists if ins is a list
     """
-    jac = jacobian(outs, ins, batched=batched,
-                   create_graph=True, allow_unused=allow_unused)
+    jac = jacobian(
+        outs, ins, batched=batched, create_graph=True, allow_unused=allow_unused
+    )
     if isinstance(jac, list):
-        hes = [jacobian(jac_i, ins,  batched=batched, create_graph=create_graph,
-                        allow_unused=allow_unused) for jac_i in jac]
+        hes = [
+            jacobian(
+                jac_i,
+                ins,
+                batched=batched,
+                create_graph=create_graph,
+                allow_unused=allow_unused,
+            )
+            for jac_i in jac
+        ]
     else:
-        hes = jacobian(jac, ins, batched=batched, create_graph=create_graph,
-                       allow_unused=allow_unused)
+        hes = jacobian(
+            jac,
+            ins,
+            batched=batched,
+            create_graph=create_graph,
+            allow_unused=allow_unused,
+        )
     return jac, hes
 
 
@@ -155,12 +219,19 @@ def trace(tensor):
         of the given tensor(s), with each of size (*tensor[i].size()[:-2], 1)
     """
     if isinstance(tensor, list) or isinstance(tensor, tuple):
-        return [torch.einsum('...ii->...', t) for t in tensor]
+        return [torch.einsum("...ii->...", t) for t in tensor]
     else:
-        return torch.einsum('...ii->...', tensor)
+        return torch.einsum("...ii->...", tensor)
 
 
-def divergence(outs, ins, jacobian=None, batched=False, create_graph=False, allow_unused=False):
+def divergence(
+    outs,
+    ins,
+    jacobian=None,
+    batched=False,
+    create_graph=False,
+    allow_unused=False,
+):
     """Computes the divergence of outs with respect to ins. If jacobian is 
     provided, then will be more efficient
 
@@ -175,11 +246,18 @@ def divergence(outs, ins, jacobian=None, batched=False, create_graph=False, allo
     """
     if jacobian is None:
         jacobian = jacobian(
-            outs, ins, batched=batched, create_graph=create_graph, allow_unused=allow_unused)
+            outs,
+            ins,
+            batched=batched,
+            create_graph=create_graph,
+            allow_unused=allow_unused,
+        )
     return trace(jacobian)
 
 
-def jacobian_and_laplacian(outs, ins, batched=False, create_graph=False, allow_unused=False):
+def jacobian_and_laplacian(
+    outs, ins, batched=False, create_graph=False, allow_unused=False
+):
     """This currently computes the laplacian by using the entire hessian. There
     may be a more efficient way to do this
 
@@ -191,6 +269,11 @@ def jacobian_and_laplacian(outs, ins, batched=False, create_graph=False, allow_u
     :returns jacobian, laplacian
     """
     jac, hes = jacobian_and_hessian(
-        outs, ins, batched=batched, create_graph=create_graph, allow_unused=allow_unused)
+        outs,
+        ins,
+        batched=batched,
+        create_graph=create_graph,
+        allow_unused=allow_unused,
+    )
     lap = trace(hes)
     return jac, lap
