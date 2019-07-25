@@ -110,8 +110,8 @@ def _compute_multipliers(loss, constraints, parameters, warn=True, allow_unused=
 
     # Possibly batched version of J(g) * J(g)^T
     gram_matrix = torch.einsum('...ij,...kj->...ik', jac_g, jac_g)
-    untransformed_multipliers = (constraints -
-                                 torch.einsum('...ij,...j->...i', jac_g, jac_fT)).unsqueeze(-1)
+    untransformed_multipliers = - (constraints -
+                                   torch.einsum('...ij,...j->...i', jac_g, jac_fT)).unsqueeze(-1)
 
     try:
         # We do this this way because there is some chance we can provide this externally later
@@ -127,13 +127,19 @@ def _compute_multipliers(loss, constraints, parameters, warn=True, allow_unused=
                   " pseudoinverse")
             if warn == "error":
                 raise rte
-        # torch.gels is NOT yet batch-enabled. As such, we do the batching manually
         multipliers = untransformed_multipliers.new_zeros(
             untransformed_multipliers.size())
-        for b in range(len(multipliers)):
-            # discard the QR decomposition
-            multipliers[b], __ = torch.gels(
-                untransformed_multipliers[b], gram_matrix[b]
+        if len(original_constraints_size) > 1:
+            # torch.gels is NOT yet batch-enabled. As such, we do the batching manually
+            for b in range(len(multipliers)):
+                # discard the QR decomposition
+                multipliers[b], __ = torch.gels(
+                    untransformed_multipliers[b], gram_matrix[b]
+                )
+        else:
+            # not batched
+            multipliers, __ = torch.gels(
+                untransformed_multipliers, gram_matrix
             )
 
     return multipliers.view(original_constraints_size)
