@@ -23,8 +23,9 @@ CLASSIFIERS = [
     'Topic :: Scientific/Engineering :: Information Analysis'
 ]
 
-PACKAGE_REQUIREMENTS = ['numpy', 'torch',
-                        'torchvision', 'pytorch-ignite', 'matplotlib']
+PACKAGE_REQUIREMENTS = ['numpy', 'torch', 'torchvision', 'pytorch-ignite']
+
+TEST_REQUIREMENTS = ['pytest', 'clean_ipynb']
 
 if __name__ == '__main__':
     setup(
@@ -38,5 +39,6 @@ if __name__ == '__main__':
         url='https://github.com/gelijergensen/pyinsulate',
         packages=PACKAGE_NAMES, scripts=[], keywords=KEYWORDS,
         classifiers=CLASSIFIERS, include_package_data=True, zip_safe=False,
-        install_requires=PACKAGE_REQUIREMENTS
+        install_requires=PACKAGE_REQUIREMENTS,
+        tests_require=TEST_REQUIREMENTS,
     )
