@@ -14,7 +14,6 @@ cd $SCRATCH/clones/$DATE
 
 echo "Cloning repository"
 git clone git@github.com:gelijergensen/pyinsulate.git
-git checkout BRANCH
 
 echo "Setting up new virtual environment"
 python3 -m venv env
@@ -22,4 +21,5 @@ source env/bin/activate
 
 echo "Setting up repository"
 cd pyinsulate
+git checkout BRANCH
 pip install -e .
