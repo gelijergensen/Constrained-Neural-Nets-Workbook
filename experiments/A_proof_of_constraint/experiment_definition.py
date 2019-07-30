@@ -2,6 +2,7 @@
 
 import itertools
 import sys
+from torch import nn
 
 
 def get_configuration(index):
@@ -29,12 +30,14 @@ def dictionary_product(**kwargs):
 CONFIGURATIONS = list(
     dictionary_product(
         **{
-            "training_sampling": ["uniform"],
-            "num_points": [100],
-            "num_training": [10],
-            "batch_size": [10],
-            "model_size": [[50], [25, 25]],
-            "learning_rate": [1e-2],
+            "training_sampling": ["uniform", "start"],
+            "num_points": [1000],
+            "num_training": [500],
+            "batch_size": [100],
+            "model_size": [[20, 20, 20]],
+            "learning_rate": [1e-3],
+            "method": ["average", "batchwise", "unconstrained"],
+            "model_act": [nn.Tanh()],
         }
     )
 )
