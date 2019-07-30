@@ -14,8 +14,8 @@ from pyinsulate.derivatives import jacobian
 class Timing_Events(Enum):
     """A set of Sub-Batch events"""
 
-    COMPUTE_JF = "Exact Multipliers: Compute Jf"
-    COMPUTE_JG = "Exact Multipliers: Compute Jg"
+    COMPUTE_JF = "Exact Multipliers: Compute loss jacobian"
+    COMPUTE_JG = "Exact Multipliers: Compute constraint jacobian"
     COMPUTE_GRAM = "Exact Multipliers: Compute gram matrix"
     COMPUTE_PRE_MULTIPLIERS = "Exact Multipliers: Compute pre-multipliers"
     CHOLESKY = "Exact Multipliers: Cholesky"
@@ -234,7 +234,7 @@ def _compute_multipliers(
         )
         start_time = record_timing(start_time, Timing_Events.CHOLESKY_SOLVE)
         timing[Timing_Events.ERRORED.value] = False
-        timing[Timing_Events.LEAST_SQUARES.value] = 0.0
+        timing[Timing_Events.LEAST_SQUARES.value] = -999.0
     except RuntimeError as rte:
         if warn:
             print("Error occurred while computing constrained loss:")
@@ -261,7 +261,7 @@ def _compute_multipliers(
             multipliers, __ = torch.gels(untransformed_multipliers, gram_matrix)
         start_time = record_timing(start_time, Timing_Events.LEAST_SQUARES)
         timing[Timing_Events.ERRORED.value] = True
-        timing[Timing_Events.CHOLESKY_SOLVE.value] = 0.0
+        timing[Timing_Events.CHOLESKY_SOLVE.value] = -999.0
 
     if return_timing:
         return multipliers.view(original_constraints_size), timing
