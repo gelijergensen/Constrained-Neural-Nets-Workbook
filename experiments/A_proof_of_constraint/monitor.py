@@ -1,5 +1,6 @@
 """Things to monitor during the training and evaluation phases"""
 
+from pyinsulate.lagrange.exact import Timing_Events
 from pyinsulate.handlers import Monitor
 
 from .event_loop import Sub_Batch_Events
@@ -15,9 +16,13 @@ class ProofOfConstraintMonitor(Monitor):
         self.add("constrained_loss", average=False)
         self.add("batch_size", average=False)
         self.add("constraints", average=False)
-        self.time_keys = ["total"] + [event.value for event in Sub_Batch_Events]
+        self.time_keys = (
+            ["total"]
+            + [event.value for event in Sub_Batch_Events]
+            + [event.value for event in Timing_Events]
+        )
         for key in self.time_keys:
-            self.add(key, average=True)
+            self.add(key, average=False)
 
     def new_epoch(self, engine):
         super().new_epoch(engine)
