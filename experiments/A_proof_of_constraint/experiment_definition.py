@@ -38,6 +38,9 @@ CONFIGURATIONS = list(
             "learning_rate": [1e-3],
             "method": ["average", "batchwise", "unconstrained"],
             "model_act": [nn.Tanh()],
+            "num_epochs": [200],
+            "save_directory": ["results/checkpoints"],
+            "save_interval": 10,
         }
     )
 )

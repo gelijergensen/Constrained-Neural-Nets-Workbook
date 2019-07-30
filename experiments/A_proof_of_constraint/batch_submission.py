@@ -9,6 +9,17 @@ from experiments.A_proof_of_constraint.experiment_definition import (
     get_configuration,
 )
 
+
+def save_out(
+    summary,
+    savefile,
+    directory="/global/u1/g/gelijerg/Projects/pyinsulate/results",
+):
+    full_file = f"{directory}/{savefile}"
+    print(f"Saving to file {full_file}")
+    torch.save(summary, full_file)
+
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Please specify a configuration!")
@@ -25,21 +36,29 @@ if __name__ == "__main__":
     # Default to 1 epoch, if not specified
     num_epochs = configuration.pop("num_epochs", 1)
 
-    final_result = run_experiment(num_epochs, log=print, **configuration)
-    configuration, engines, monitors = final_result
-    trainer, train_evaluator, test_evaluator = engines
-    training_monitor, evaluation_train_monitor, evaluation_test_monitor = (
-        monitors
-    )
+    save_interval = configuration.get("save_interval", None)
+    if "save_interval" in configuration:
+        configuration["save_file"] = f"{base_name}_{time_string}"
+        if "save_directory" not in configuration:
+            configuration["save_directory"] = f"{directory}/checkpoints"
 
-    summary = {
-        "configuration": configuration,
-        "training_monitor": training_monitor,
-        "evaluation_train_monitor": evaluation_train_monitor,
-        "evaluation_test_monitor": evaluation_test_monitor,
-    }
-    full_file = f"{directory}/{savefile}"
-    print(f"Saving to file {full_file}")
-    torch.save(summary, full_file)
+    final_result = run_experiment(num_epochs, log=print, **configuration)
+
+    configuration, (trainer, train_evaluator, test_evaluator), (
+        training_monitor,
+        evaluation_train_monitor,
+        evaluation_test_monitor,
+    ) = final_result
+
+    save_out(
+        {
+            "configuration": configuration,
+            "training_monitor": training_monitor,
+            "evaluation_train_monitor": evaluation_train_monitor,
+            "evaluation_test_monitor": evaluation_test_monitor,
+        },
+        savefile=savefile,
+        directory=directory,
+    )
 
     print("done!")
