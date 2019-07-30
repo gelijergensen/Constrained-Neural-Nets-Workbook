@@ -4,6 +4,9 @@
 echo "Loading modules"
 source ~/setup.sh
 
+# Determine the present branch
+BRANCH=$(git branch | grep \* | cut -d ' ' -f2)
+
 DATE=$(date +"%Y%m%d-%H%M%S")
 echo "Making dir" $SCRATCH/clones/$DATE
 mkdir -p $SCRATCH/clones/$DATE
@@ -11,6 +14,7 @@ cd $SCRATCH/clones/$DATE
 
 echo "Cloning repository"
 git clone git@github.com:gelijergensen/pyinsulate.git
+git checkout BRANCH
 
 echo "Setting up new virtual environment"
 python3 -m venv env
