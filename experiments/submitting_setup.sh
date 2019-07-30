@@ -21,5 +21,5 @@ source env/bin/activate
 
 echo "Setting up repository"
 cd pyinsulate
-git checkout BRANCH
+git checkout $BRANCH
 pip install -e .
