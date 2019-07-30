@@ -4,7 +4,7 @@
 #SBATCH -q regular
 #SBATCH -J $1
 #SBATCH --mail-type=ALL
-#SBATCH -t 01:00:00
+#SBATCH -t 10:00:00
 #SBATCH --array=0-$2
 
 #run the application:
