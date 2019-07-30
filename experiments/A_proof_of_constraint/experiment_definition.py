@@ -40,7 +40,7 @@ CONFIGURATIONS = list(
             "model_act": [nn.Tanh()],
             "num_epochs": [200],
             "save_directory": ["results/checkpoints"],
-            "save_interval": 10,
+            "save_interval": [10],
         }
     )
 )
