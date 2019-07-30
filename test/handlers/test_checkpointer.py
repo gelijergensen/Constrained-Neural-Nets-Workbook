@@ -49,7 +49,7 @@ def test_checkpointer():
         checkpoint = torch.load(
             os.path.join(
                 checkpointer._dirname,
-                f"{checkpointer._filename_base}_{checkpointer._iteration}.pth",
+                f"{checkpointer._filename_base}_{checkpointer._iteration:05d}.pth",
             )
         )
         expected = {"constant": checkpointer.constant, "epoch": num_epochs}
