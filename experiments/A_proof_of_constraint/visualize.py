@@ -141,16 +141,31 @@ def plot_time(
     :returns: the figure
     """
 
-    time_keys = np.array(monitor.time_keys)
-    times = np.array([np.mean(monitor.get(key)) for key in time_keys])
+    time_keys = [key for key in monitor.time_keys if not "Errored" in key]
+    batch_sizes = np.array(monitor.get("batch_size"))
+    # only the batches with a full batch size
+    valid_observations = batch_sizes == batch_sizes.ravel()[0]
 
-    idxs = np.argsort(times)
-    times = times[idxs]
-    time_keys = time_keys[idxs]
+    average_times = list()
+    for key in time_keys:
+        times = np.array(monitor.get(key))
+        print(f"{key}: {times}")
+        # average ignoring invalid observations and flag values of -999.0
+        average_times.append(
+            np.nan_to_num(
+                np.mean(times[np.logical_and(valid_observations, times > -998)])
+            )
+        )
+    average_times = np.array(average_times)
+
+    idxs = np.argsort(average_times)
+    average_times = average_times[idxs]
+    print(average_times)
+    time_keys = np.array(time_keys)[idxs]
     labels = _clean_labels(time_keys)
 
-    fig = plt.figure(figsize=(4, 3))
-    plt.barh(labels, times, tick_label=["" for _ in labels])
+    fig = plt.figure()
+    plt.barh(labels, average_times, tick_label=["" for _ in labels])
     plt.xlabel(xlabel)
     plt.title(title)
 

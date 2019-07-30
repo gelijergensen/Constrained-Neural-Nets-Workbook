@@ -148,19 +148,23 @@ def create_engine(
         )
 
         if method == "average":
-            engine.state.constrained_loss, engine.state.multipliers = average_constrained_loss(
+            engine.state.constrained_loss, engine.state.multipliers, multiplier_computation_timing = average_constrained_loss(
                 engine.state.loss,
                 engine.state.constraints,
                 list(model.parameters()),
                 return_multipliers=True,
+                return_timing=True,
             )
+            engine.state.times.update(multiplier_computation_timing)
         elif method == "batchwise":
-            engine.state.constrained_loss, engine.state.multipliers = batchwise_constrained_loss(
+            engine.state.constrained_loss, engine.state.multipliers, multiplier_computation_timing = batchwise_constrained_loss(
                 engine.state.loss,
                 engine.state.constraints,
                 list(model.parameters()),
                 return_multipliers=True,
+                return_timing=True,
             )
+            engine.state.times.update(multiplier_computation_timing)
         elif method == "unconstrained":
             # Technically the multipliers are zero, so we set this for consistency
             engine.state.multipliers = engine.state.constraints.new_zeros(
@@ -168,28 +172,33 @@ def create_engine(
             )
             engine.state.constrained_loss = torch.mean(engine.state.loss)
         elif method == "no-loss":
-            engine.state.constrained_loss, engine.state.multipliers = average_constrained_loss(
+            engine.state.constrained_loss, engine.state.multipliers, multiplier_computation_timing = average_constrained_loss(
                 engine.state.loss.new_zeros(
                     engine.state.loss.size()
                 ).requires_grad_(),
                 engine.state.constraints,
                 list(model.parameters()),
                 return_multipliers=True,
+                return_timing=True,
             )
+            engine.state.times.update(multiplier_computation_timing)
         elif method == "non-projecting":
-            correction_term, engine.state.multipliers = average_constrained_loss(
+            correction_term, engine.state.multipliers, multiplier_computation_timing = average_constrained_loss(
                 engine.state.loss.new_zeros(
                     engine.state.loss.size()
                 ).requires_grad_(),
                 engine.state.constraints,
                 list(model.parameters()),
                 return_multipliers=True,
+                return_timing=True,
             )
             engine.state.constrained_loss = (
                 torch.mean(engine.state.loss) + correction_term
             )
+            engine.state.times.update(multiplier_computation_timing)
         else:
             raise ValueError(f"Method {method} not known. Please respecify")
+
         section_start = end_section(
             engine, Sub_Batch_Events.REWEIGHTED_LOSS_COMPUTED, section_start
         )
