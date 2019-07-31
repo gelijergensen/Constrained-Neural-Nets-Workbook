@@ -20,8 +20,7 @@ class Checkpointer(object):
         self.save_interval = save_interval
         self._iteration = 0
 
-        if not os.path.exists(dirname):
-            os.makedirs(dirname)
+        os.makedirs(dirname, exist_ok=True)
 
         matched = [
             fname
