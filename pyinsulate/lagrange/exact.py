@@ -14,14 +14,14 @@ from pyinsulate.derivatives import jacobian
 class Timing_Events(Enum):
     """A set of Sub-Batch events"""
 
-    COMPUTE_JF = "Exact Multipliers: Compute loss jacobian"
-    COMPUTE_JG = "Exact Multipliers: Compute constraint jacobian"
-    COMPUTE_GRAM = "Exact Multipliers: Compute gram matrix"
-    COMPUTE_PRE_MULTIPLIERS = "Exact Multipliers: Compute pre-multipliers"
-    CHOLESKY = "Exact Multipliers: Cholesky"
-    CHOLESKY_SOLVE = "Exact Multipliers: Choleksy solve"
-    LEAST_SQUARES = "Exact Multipliers: Least squares"
-    ERRORED = "Exact Multipliers: Errored"
+    COMPUTE_JF = "exact multipliers: compute loss jacobian"
+    COMPUTE_JG = "exact multipliers: compute constraint jacobian"
+    COMPUTE_GRAM = "exact multipliers: compute gram matrix"
+    COMPUTE_PRE_MULTIPLIERS = "exact multipliers: compute pre-multipliers"
+    CHOLESKY = "exact multipliers: cholesky"
+    CHOLESKY_SOLVE = "exact multipliers: choleksy solve"
+    LEAST_SQUARES = "exact multipliers: least squares"
+    ERRORED = "exact multipliers: errored"
 
 
 def average_constrained_loss(

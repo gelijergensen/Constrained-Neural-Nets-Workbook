@@ -44,4 +44,4 @@ class ProofOfConstraintMonitor(Monitor):
         self.set("batch_size", len(engine.state.xb))
         self.set("constraints", engine.state.constraints.to("cpu"))
         for key in self.time_keys:
-            self.set(key, engine.state.times[key])
+            self.set(key, engine.state.times.get(key, 0.0))
