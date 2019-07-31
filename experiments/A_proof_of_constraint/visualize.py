@@ -124,55 +124,105 @@ def plot_constraints(
 
 
 def plot_time(
-    monitor,
+    monitors,
+    labels,
     savefile,
     title="Average computation time per batch",
     xlabel="Milliseconds",
+    time_keys=None,
+    log=False,
     directory=DEFAULT_DIRECTORY,
 ):
     """Plots the computation time required for each step as a horizontal bar 
     plot
 
-    :param monitor: the training monitor
+    :param monitors: a list of monitors
+    :param labels: a list of strings for the label of each monitor
     :param savefile: name of the file to save. If none, then will not save
     :param title: title of the figure
     :param xlabel: label for the x-axis
+    :param time_keys: time keys to plot. Defaults to all available
+    :param log: whether to plot on a log scale
     :param directory: directory to save the file in. Defaults to the results dir
     :returns: the figure
     """
 
-    time_keys = [key for key in monitor.time_keys if not "Errored" in key]
-    batch_sizes = np.array(monitor.get("batch_size"))
-    # only the batches with a full batch size
-    valid_observations = batch_sizes == batch_sizes.ravel()[0]
-
-    average_times = list()
-    for key in time_keys:
-        times = np.array(monitor.get(key))
-        print(f"{key}: {times}")
-        # average ignoring invalid observations and flag values of -999.0
-        average_times.append(
-            np.nan_to_num(
-                np.mean(times[np.logical_and(valid_observations, times > -998)])
+    # Get a complete list of time_keys:
+    if time_keys is None:
+        time_keys = set()
+        for monitor in monitors:
+            time_keys.update(
+                [key for key in monitor.time_keys if not "errored" in key]
             )
-        )
-    average_times = np.array(average_times)
+        time_keys = list(time_keys)
 
-    idxs = np.argsort(average_times)
-    average_times = average_times[idxs]
-    print(average_times)
+    all_average_times = list()
+    for monitor in monitors:
+        batch_sizes = np.array(monitor.get("batch_size"))
+        # only the batches with a full batch size (assume first batch is full)
+        valid_observations = batch_sizes == batch_sizes.ravel()[0]
+
+        average_times = list()
+        for key in time_keys:
+            if key not in monitor.time_keys:
+                average_times.append(0.0)
+            times = np.array(monitor.get(key))
+            # average ignoring invalid observations and flag values of -999.0
+            average_times.append(
+                np.nan_to_num(
+                    np.mean(
+                        times[np.logical_and(valid_observations, times > -998)]
+                    )
+                )
+            )
+        all_average_times.append(average_times)
+    all_average_times = np.array(all_average_times)
+
+    max_heights = np.amax(all_average_times, axis=0)
+    idxs = np.argsort(max_heights)
+    all_average_times = all_average_times[:, idxs]
     time_keys = np.array(time_keys)[idxs]
-    labels = _clean_labels(time_keys)
+    clean_time_keys = _clean_labels(time_keys)
 
+    # do normalization if requested
+
+    # Using the recipe for a grouped bar plot
     fig = plt.figure()
-    plt.barh(labels, average_times, tick_label=["" for _ in labels])
+
+    # set width of bars
+    bar_width = 1.0 / (0.25 + len(all_average_times))
+    for i, (average_times, label) in enumerate(zip(all_average_times, labels)):
+
+        positions = np.arange(len(clean_time_keys)) + i * bar_width
+
+        plt.barh(positions, average_times, height=bar_width, label=label)
+    # Add divider bars
+    positions = (
+        np.arange(len(clean_time_keys) + 1)
+        # + len(all_average_times) * bar_width
+        - 0.25
+    )
+    for pos in positions:
+        plt.axhline(pos, color="grey")
+
+    # Add ticks on the middle of the group bars
+    ys = (
+        # np.linspace(0.0, 1.0, len(clean_time_keys) + 1)
+        np.arange(len(clean_time_keys))
+        + 0.5 * len(all_average_times) * bar_width
+        - 0.20
+    )
+    plt.yticks(ys, clean_time_keys, ha="left")
+    ax = plt.gca()
+    ax.tick_params(axis="y", direction="in", pad=-5)
+    plt.legend(loc="lower right")
+
+    # possibly make log plot
+    if log:
+        plt.xscale("log")
+
     plt.xlabel(xlabel)
     plt.title(title)
-
-    x = (plt.xlim()[1] - plt.xlim()[0]) * 0.02
-    for y, label in enumerate(labels):
-        plt.text(x, y, label, ha="left", va="center")
-    plt.yticks([], direction="in")
 
     plt.tight_layout()
 
