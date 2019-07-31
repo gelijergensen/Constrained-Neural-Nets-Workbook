@@ -28,7 +28,8 @@ def plot_loss(
 ):
     """Plots several loss curves
 
-    :param monitors: a list of monitors, e.g. [training, evaluation]
+    :param monitors: a list of pairs of monitors [(training, evaluation)].
+        Elements of the pair can be set to None to be skipped
     :param labels: a list of strings for the label of each monitor
     :param savefile: name of the file to save. If none, then will not save
     :param constrained: whether to plot the constrained or unconstrained loss.
@@ -39,28 +40,54 @@ def plot_loss(
     :returns: the figure
     """
 
-    epochs = monitors[0].epoch
+    def get_data(monitor):
+        if monitor is not None:
+            losses = (
+                monitor.mean_loss
+                if not constrained
+                else monitor.constrained_loss
+            )
+            this_batch_size = monitor.batch_size
 
-    all_mean_losses = np.zeros((len(epochs), len(labels)))
-    for i, monitor in enumerate(monitors):
-        losses = (
-            monitor.mean_loss if not constrained else monitor.constrained_loss
-        )
-        this_batch_size = monitor.batch_size
+            return np.array(
+                [
+                    np.average(loss, weights=batch_size)
+                    for loss, batch_size in zip(losses, this_batch_size)
+                ]
+            )
+        else:
+            return None
 
-        all_mean_losses[:, i] = np.array(
-            [
-                np.average(loss, weights=batch_size)
-                for loss, batch_size in zip(losses, this_batch_size)
-            ]
-        )
+    epochs = None
 
-    fig = plt.figure(figsize=(4, 3))
-    plt.plot(epochs, all_mean_losses)
+    fig = plt.figure()
+
+    for i, (monitor_pair, label) in enumerate(zip(monitors, labels)):
+        training_monitor, evaluation_monitor = monitor_pair
+
+        color = None
+        if training_monitor is not None:
+            training_data = get_data(training_monitor)
+            line2d = plt.plot(
+                training_monitor.epoch,
+                training_data,
+                "-",
+                label=f"{label} (Training)",
+            )
+            color = line2d[0].get_color()
+        if evaluation_monitor is not None:
+            evaluation_data = get_data(evaluation_monitor)
+            plt.plot(
+                evaluation_monitor.epoch,
+                evaluation_data,
+                "--",
+                label=f"{label} (Evaluation)",
+                color=color,
+            )
     plt.title(title)
     plt.ylabel(ylabel)
     plt.xlabel("Epoch")
-    plt.legend(labels)
+    plt.legend()
 
     plt.tight_layout()
 
