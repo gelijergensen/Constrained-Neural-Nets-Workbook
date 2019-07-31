@@ -93,7 +93,9 @@ def plot_loss(
 
     if savefile is not None:
         filepath = f"{directory}/{savefile}.png"
-        print(f"Saving loss plot to {filepath}")
+        print(
+            f"Saving {'constrained ' if constrained else ''}loss plot to {filepath}"
+        )
         plt.savefig(filepath, dpi=300)
     return fig
 
@@ -117,29 +119,53 @@ def plot_constraints(
     :returns: the figure
     """
 
-    epochs = monitors[0].epoch
+    def get_data(monitor):
+        if monitor is not None:
+            constraints = monitor.constraints
+            batch_sizes = monitor.batch_size
 
-    all_mean_constraints = np.zeros((len(epochs), len(labels)))
-    for i, monitor in enumerate(monitors):
-        constraints = monitor.constraints
-        batch_sizes = monitor.batch_size
+            return np.array(
+                [
+                    np.average(
+                        [torch.norm(con).item() for con in constraint],
+                        weights=batch_size,
+                    )
+                    for constraint, batch_size in zip(constraints, batch_sizes)
+                ]
+            )
+        else:
+            return None
 
-        all_mean_constraints[:, i] = np.array(
-            [
-                np.average(
-                    [torch.norm(con).item() for con in constraint],
-                    weights=batch_size,
-                )
-                for constraint, batch_size in zip(constraints, batch_sizes)
-            ]
-        )
+    epochs = None
 
-    fig = plt.figure(figsize=(4, 3))
-    plt.plot(epochs, all_mean_constraints)
+    fig = plt.figure()
+
+    for i, (monitor_pair, label) in enumerate(zip(monitors, labels)):
+        training_monitor, evaluation_monitor = monitor_pair
+
+        color = None
+        if training_monitor is not None:
+            training_data = get_data(training_monitor)
+            line2d = plt.plot(
+                training_monitor.epoch,
+                training_data,
+                "-",
+                label=f"{label} (Training)",
+            )
+            color = line2d[0].get_color()
+        if evaluation_monitor is not None:
+            evaluation_data = get_data(evaluation_monitor)
+            plt.plot(
+                evaluation_monitor.epoch,
+                evaluation_data,
+                "--",
+                label=f"{label} (Evaluation)",
+                color=color,
+            )
     plt.title(title)
     plt.ylabel(ylabel)
     plt.xlabel("Epoch")
-    plt.legend(labels)
+    plt.legend()
 
     plt.tight_layout()
 
@@ -148,6 +174,38 @@ def plot_constraints(
         print(f"Saving constraint satisfaction plot to {filepath}")
         plt.savefig(filepath, dpi=300)
     return fig
+
+    # epochs = monitors[0].epoch
+
+    # all_mean_constraints = np.zeros((len(epochs), len(labels)))
+    # for i, monitor in enumerate(monitors):
+    #     constraints = monitor.constraints
+    #     batch_sizes = monitor.batch_size
+
+    #     all_mean_constraints[:, i] = np.array(
+    #         [
+    #             np.average(
+    #                 [torch.norm(con).item() for con in constraint],
+    #                 weights=batch_size,
+    #             )
+    #             for constraint, batch_size in zip(constraints, batch_sizes)
+    #         ]
+    #     )
+
+    # fig = plt.figure(figsize=(4, 3))
+    # plt.plot(epochs, all_mean_constraints)
+    # plt.title(title)
+    # plt.ylabel(ylabel)
+    # plt.xlabel("Epoch")
+    # plt.legend(labels)
+
+    # plt.tight_layout()
+
+    # if savefile is not None:
+    #     filepath = f"{directory}/{savefile}.png"
+    #     print(f"Saving constraint satisfaction plot to {filepath}")
+    #     plt.savefig(filepath, dpi=300)
+    # return fig
 
 
 def plot_time(
@@ -178,8 +236,9 @@ def plot_time(
     if time_keys is None:
         time_keys = set()
         for monitor in monitors:
+            print(_clean_labels(monitor.time_keys))
             time_keys.update(
-                [key for key in monitor.time_keys if not "errored" in key]
+                [key for key in monitor.time_keys if "error" not in key]
             )
         time_keys = list(time_keys)
 
@@ -298,18 +357,18 @@ def plot_model_predictions(
     inputs, outputs, training_mask = data
 
     # Plot the datapoints
-    fig = plt.figure(figsize=(4, 3))
+    fig = plt.figure()
     plt.plot(
-        inputs[training_mask], outputs[training_mask], "x", color="#555555"
+        inputs[training_mask], outputs[training_mask], "o", color="#555555"
     )
     plt.plot(
         inputs[np.logical_not(training_mask)],
         outputs[np.logical_not(training_mask)],
-        "x",
+        "o",
         color="#BBBBBB",
     )
     for i, (predictions, label) in enumerate(zip(prediction_sets, labels)):
-        plt.plot(inputs, prediction_sets[i], "--", label=label)
+        plt.plot(inputs, predictions, "-", label=label)
     plt.title(title)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
@@ -319,7 +378,7 @@ def plot_model_predictions(
 
     if savefile is not None:
         filepath = f"{directory}/{savefile}.png"
-        print(f"Saving loss plot to {filepath}")
+        print(f"Saving prediction plot to {filepath}")
         plt.savefig(filepath, dpi=300)
     return fig
 
