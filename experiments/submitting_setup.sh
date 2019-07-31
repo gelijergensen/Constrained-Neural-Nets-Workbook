@@ -4,6 +4,9 @@
 echo "Loading modules"
 source ~/setup.sh
 
+# Determine the present branch
+BRANCH=$(git branch | grep \* | cut -d ' ' -f2)
+
 DATE=$(date +"%Y%m%d-%H%M%S")
 echo "Making dir" $SCRATCH/clones/$DATE
 mkdir -p $SCRATCH/clones/$DATE
@@ -18,4 +21,5 @@ source env/bin/activate
 
 echo "Setting up repository"
 cd pyinsulate
+git checkout $BRANCH
 pip install -e .

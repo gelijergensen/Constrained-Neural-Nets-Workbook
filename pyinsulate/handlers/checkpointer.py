@@ -20,8 +20,7 @@ class Checkpointer(object):
         self.save_interval = save_interval
         self._iteration = 0
 
-        if not os.path.exists(dirname):
-            os.makedirs(dirname)
+        os.makedirs(dirname, exist_ok=True)
 
         matched = [
             fname
@@ -41,7 +40,7 @@ class Checkpointer(object):
 
     def retrieve_and_save(self, engine):
         obj = self.retrieve(engine)
-        filename = f"{self._filename_base}_{self._iteration}.pth"
+        filename = f"{self._filename_base}_{self._iteration:05d}.pth"
         path = os.path.join(self._dirname, filename)
         self._save(obj, path)
 
