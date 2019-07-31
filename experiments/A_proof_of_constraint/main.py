@@ -241,7 +241,8 @@ def run_experiment(
     @trainer.on(Events.EPOCH_COMPLETED)
     def run_evaluation(trainer):
         if training_monitor is not None:
-            training_monitor(trainer)
+            summary = training_monitor.summarize()
+            log(f"Epoch[{trainer.state.epoch}] Training (Training) Summary - {summary}")
 
         if evaluate_training:
             if should_log:
@@ -250,7 +251,8 @@ def run_experiment(
                 )
             train_evaluator.run(train_dl)
             if evaluation_train_monitor is not None:
-                evaluation_train_monitor(train_evaluator)
+                summary = evaluation_train_monitor.summarize()
+                log(f"Epoch[{trainer.state.epoch}] Evaluation (Training) Summary - {summary}")
 
         if evaluate_testing:
             if should_log:
@@ -259,7 +261,8 @@ def run_experiment(
                 )
             test_evaluator.run(test_dl)
             if evaluation_test_monitor is not None:
-                evaluation_test_monitor(test_evaluator)
+                summary = evaluation_test_monitor.summarize()
+                log(f"Epoch[{trainer.state.epoch}] Evaluation (Testing) Summary  - {summary}")
 
         if should_checkpoint:
             checkpointer(trainer)

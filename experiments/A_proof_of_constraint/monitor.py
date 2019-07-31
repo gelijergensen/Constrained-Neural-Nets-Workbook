@@ -1,5 +1,7 @@
 """Things to monitor during the training and evaluation phases"""
 
+import numpy as np
+
 from pyinsulate.lagrange.exact import Timing_Events
 from pyinsulate.handlers import Monitor
 
@@ -28,6 +30,12 @@ class ProofOfConstraintMonitor(Monitor):
         super().new_epoch(engine)
         last_epoch = self.get("epoch", -2) if len(self.get("epoch")) > 1 else 0
         self.set("epoch", last_epoch + 1)
+
+    def summarize(self):
+        mean_loss = np.mean(self.get("mean_loss", -1))
+        mean_constrained_loss = np.mean(self.get("constrained_loss", -1))
+        summary = f"Mean constrained loss: {mean_constrained_loss:0.5f}, Mean loss: {mean_loss:0.5f}"
+        return summary
 
     def __call__(self, engine):
         self.set("loss", engine.state.loss.to("cpu"))

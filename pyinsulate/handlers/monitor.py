@@ -18,6 +18,9 @@ class Monitor(object):
     def __call__(self, engine):
         raise NotImplementedError
 
+    def summarize(self):
+        return "No Monitor Summary Given"
+
     def attach(self, engine):
         engine.add_event_handler(Events.EPOCH_STARTED, self.new_epoch)
         engine.add_event_handler(Events.ITERATION_COMPLETED, self.__call__)
