@@ -12,10 +12,7 @@ try:
 except ImportError:
     from time import time as perf_counter
 
-from pyinsulate.lagrange import (
-    average_constrained_loss,
-    batchwise_constrained_loss,
-)
+from pyinsulate.lagrange import constrain_loss
 
 __all__ = ["create_engine", "Sub_Batch_Events"]
 
@@ -67,7 +64,7 @@ def create_engine(
     :param guard: whether to perform a check to ensure that the model is
         training
     :param method: method to use for constraining. Should be one of
-        "average" - compute average (along batch) of constrained update
+        "constrained" - compute average (along batch) of constrained update
         "batchwise" - compute constrained update of mean loss with respect to
             all constraints within the batch
         "unconstrained" - don't constrain. Used as a control method
@@ -133,7 +130,6 @@ def create_engine(
             engine, Sub_Batch_Events.GUARD_COMPLETED, section_start
         )
 
-        # FIXME Figure out why things aren't converging correctly
         engine.state.loss = loss_fn(engine.state.out, engine.state.yb)
         engine.state.mean_loss = torch.mean(engine.state.loss)
         section_start = end_section(
@@ -147,22 +143,25 @@ def create_engine(
             engine, Sub_Batch_Events.CONSTRAINTS_COMPUTED, section_start
         )
 
-        if method == "average":
-            engine.state.constrained_loss, engine.state.multipliers, multiplier_computation_timing = average_constrained_loss(
+        if method == "constrained":
+            constrained_loss, engine.state.multipliers, multiplier_computation_timing = constrain_loss(
                 engine.state.loss,
                 engine.state.constraints,
                 list(model.parameters()),
                 return_multipliers=True,
                 return_timing=True,
+                # defaults are for this method
             )
+            engine.state.constrained_loss = torch.mean(constrained_loss)
             engine.state.times.update(multiplier_computation_timing)
         elif method == "batchwise":
-            engine.state.constrained_loss, engine.state.multipliers, multiplier_computation_timing = batchwise_constrained_loss(
+            engine.state.constrained_loss, engine.state.multipliers, multiplier_computation_timing = constrain_loss(
                 engine.state.loss,
                 engine.state.constraints,
                 list(model.parameters()),
                 return_multipliers=True,
                 return_timing=True,
+                batchwise=True,
             )
             engine.state.times.update(multiplier_computation_timing)
         elif method == "unconstrained":
@@ -172,7 +171,7 @@ def create_engine(
             )
             engine.state.constrained_loss = torch.mean(engine.state.loss)
         elif method == "no-loss":
-            engine.state.constrained_loss, engine.state.multipliers, multiplier_computation_timing = average_constrained_loss(
+            constrained_loss, engine.state.multipliers, multiplier_computation_timing = constrain_loss(
                 engine.state.loss.new_zeros(
                     engine.state.loss.size()
                 ).requires_grad_(),
@@ -181,9 +180,10 @@ def create_engine(
                 return_multipliers=True,
                 return_timing=True,
             )
+            engine.state.constrained_loss = torch.mean(constrained_loss)
             engine.state.times.update(multiplier_computation_timing)
         elif method == "non-projecting":
-            correction_term, engine.state.multipliers, multiplier_computation_timing = average_constrained_loss(
+            correction_term, engine.state.multipliers, multiplier_computation_timing = constrain_loss(
                 engine.state.loss.new_zeros(
                     engine.state.loss.size()
                 ).requires_grad_(),
@@ -192,8 +192,8 @@ def create_engine(
                 return_multipliers=True,
                 return_timing=True,
             )
-            engine.state.constrained_loss = (
-                torch.mean(engine.state.loss) + correction_term
+            engine.state.constrained_loss = torch.mean(
+                engine.state.loss + correction_term
             )
             engine.state.times.update(multiplier_computation_timing)
         else:

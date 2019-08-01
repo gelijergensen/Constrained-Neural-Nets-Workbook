@@ -71,7 +71,7 @@ def default_configuration():
         "model_act": nn.ReLU(),
         "model_final_act": None,
         "learning_rate": 0.01,
-        "method": "average",
+        "method": "constrained",
     }
 
 
