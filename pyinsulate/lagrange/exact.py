@@ -24,7 +24,7 @@ class Timing_Events(Enum):
     ERRORED = "exact multipliers: errored"
 
 
-def compute_multipliers(
+def compute_exact_multipliers(
     loss,
     constraints,
     parameters,
