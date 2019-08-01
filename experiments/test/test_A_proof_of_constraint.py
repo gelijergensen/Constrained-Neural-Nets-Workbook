@@ -54,7 +54,5 @@ def test_proof_of_constraint():
     for f in files:
         os.remove(f)
 
-    # TODO abstract the model/optimizer construction in main!
-
     if failure is not None:
         raise failure

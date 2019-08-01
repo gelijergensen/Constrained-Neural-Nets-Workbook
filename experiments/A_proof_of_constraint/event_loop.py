@@ -12,7 +12,7 @@ try:
 except ImportError:
     from time import time as perf_counter
 
-from pyinsulate.lagrange.exact import (
+from pyinsulate.lagrange import (
     average_constrained_loss,
     batchwise_constrained_loss,
 )
