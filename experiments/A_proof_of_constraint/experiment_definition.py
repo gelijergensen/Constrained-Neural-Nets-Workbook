@@ -30,16 +30,14 @@ def dictionary_product(**kwargs):
 CONFIGURATIONS = list(
     dictionary_product(
         **{
-            # "training_sampling": ["uniform", "start"],
-            "training_sampling": ["uniform"],
+            "training_sampling": ["uniform", "start"],
             "num_points": [1000],
             "num_training": [500],
             "batch_size": [100],
             "model_size": [[20, 20, 20]],
             "learning_rate": [1e-3],
-            # "method": ["average", "batchwise", "unconstrained"],
-            "method": ["average"],
-            "model_act": [nn.Tanh()],
+            "method": ["average", "batchwise", "unconstrained"],
+            "model_act": [nn.Tanh(), nn.SELU()],
             "num_epochs": [200],
             "save_directory": ["results/checkpoints"],
             "save_interval": [10],
