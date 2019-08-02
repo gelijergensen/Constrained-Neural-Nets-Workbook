@@ -46,6 +46,7 @@ def create_engine(
     monitor=None,
     guard=True,
     method="unconstrained",
+    reduction=None,
     **constraint_kwargs,
 ):
     """Creates an engine with the necessary components. If optimizer is not
@@ -67,12 +68,16 @@ def create_engine(
         "constrained" - compute average (along batch) of constrained update
         "batchwise" - compute constrained update of mean loss with respect to
             all constraints within the batch
+        "reduction" - apply reduction before computing constraints. If no 
+            reduction is specified, will throw error
         "unconstrained" - don't constrain. Used as a control method
         "no-loss" - intended entirely for debugging. Ignores the loss function
             entirely and just tries to satisfy the constraints
         "non-projecting" - the sum of "no-loss" and "unconstrained". This 
             destroys the exponential convergence guarantee, but should be useful
             for debugging
+    :param reduction: reduction to apply to constraints before computing 
+        constrained loss if method == "reduction"
     :param constraint_kwargs: all other parameters will be passed along to the
         constraint function
     :returns: an ignite.engine.Engine whose output is (xb, yb, out) for every
@@ -162,6 +167,20 @@ def create_engine(
                 return_multipliers=True,
                 return_timing=True,
                 batchwise=True,
+            )
+            engine.state.times.update(multiplier_computation_timing)
+        elif method == "reduction":
+            if reduction is None:
+                raise ValueError(
+                    "Reduction must be specified if method=='reduction'"
+                )
+            engine.state.constrained_loss, engine.state.multipliers, multiplier_computation_timing = constrain_loss(
+                engine.state.loss,
+                engine.state.constraints,
+                list(model.parameters()),
+                return_multipliers=True,
+                return_timing=True,
+                reduction=reduction,
             )
             engine.state.times.update(multiplier_computation_timing)
         elif method == "unconstrained":
