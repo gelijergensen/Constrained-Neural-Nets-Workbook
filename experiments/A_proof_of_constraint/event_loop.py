@@ -47,7 +47,7 @@ def create_engine(
     guard=True,
     method="unconstrained",
     reduction=None,
-    compute_exact_interval=None,
+    ground_approximation=None,
     **constraint_kwargs,
 ):
     """Creates an engine with the necessary components. If optimizer is not
@@ -81,13 +81,54 @@ def create_engine(
             for debugging
     :param reduction: reduction to apply to constraints before computing 
         constrained loss if method == "reduction" or "approximate"
-    :param compute_exact_interval: how frequently to compute the exact 
-        multipliers. Only used if method=="approximate"
+    :param ground_approximation: string for when to recompute the exact 
+        multipliers to ground the approximation. Should consist of a number 
+        followed by either "batches" or "epochs". e.g. "1 epochs", "3 batches"
     :param constraint_kwargs: all other parameters will be passed along to the
         constraint function
     :returns: an ignite.engine.Engine whose output is (xb, yb, out) for every
         iteration
     """
+    # Setup whether we would ground on batches or epochs
+    ground_epochs = (
+        ground_approximation is not None and "epoch" in ground_approximation
+    )
+    ground_frequency = int(ground_approximation.split(" ")[0])
+
+    def should_ground(engine):
+        # If this is evaluation, there's no way the parameters can change
+        if optimizer is None:
+            return True
+
+        # We always ground on the first iteration ever
+        if engine.state.last_grounded == 0:
+            if ground_epochs:
+                engine.state.last_grounded = engine.state.epoch
+            else:
+                engine.state.last_grounded = engine.state.iteration
+            return True
+
+        if ground_approximation is None:
+            return False
+
+        if ground_epochs:
+            if (
+                engine.state.epoch - engine.state.last_grounded
+                == ground_frequency
+            ):
+                engine.state.last_grounded = engine.state.epoch
+                return True
+            else:
+                return False
+        else:
+            if (
+                engine.state.iteration - engine.state.last_grounded
+                == ground_frequency
+            ):
+                engine.state.last_grounded = engine.state.iteration
+                return True
+            else:
+                return False
 
     def end_section(engine, section_event, section_start_time):
         """End the section, tabulate the time, fire the event, and resume time"""
@@ -98,6 +139,8 @@ def create_engine(
         return perf_counter()
 
     def proof_of_constraint_iteration(engine, batch):
+        if not hasattr(engine.state, "last_grounded"):
+            engine.state.last_grounded = 0
         if not hasattr(engine.state, "times"):
             setattr(engine.state, "times", dict())
 
@@ -191,14 +234,20 @@ def create_engine(
         elif method == "approximate":
             if reduction is None:
                 raise ValueError(
-                    "Reduction must be specified if method=='reduction'"
+                    "Reduction must be specified if method=='approximate'"
                 )
+            if not hasattr(engine.state, "approximation_state"):
+                engine.state.approximation_state = None
             engine.state.constrained_loss, engine.state.approximation_state, engine.state.multipliers, multiplier_computation_timing = constrain_loss(
                 engine.state.loss,
                 engine.state.constraints,
                 list(model.parameters()),
                 approximate=True,
-                compute_exact_interval=compute_exact_interval,
+                state=(
+                    None
+                    if should_ground(engine)
+                    else engine.state.approximation_state
+                ),
                 return_multipliers=True,
                 return_timing=True,
                 reduction=reduction,
@@ -254,6 +303,14 @@ def create_engine(
         section_start = end_section(
             engine, Sub_Batch_Events.OPTIMIZER_STEPPED, section_start
         )
+
+        if torch.allclose(
+            engine.state.constrained_loss,
+            engine.state.constrained_loss.new_zeros(
+                engine.state.constrained_loss.size()
+            ),
+        ):
+            print("Constrained loss is zero!")
 
         engine.state.times["total"] = perf_counter() - iteration_start
         return engine.state.xb, engine.state.yb, engine.state.out

@@ -14,7 +14,6 @@ def constrain_loss(
     parameters,
     approximate=False,
     state=None,
-    compute_exact_interval=None,
     batchwise=False,
     reduction=None,
     return_multipliers=False,
@@ -34,9 +33,6 @@ def constrain_loss(
         for the next iteration. Requires a reduction to be provided
     :param state: state of the approximation, as returned by this function. Set
         to None to reinitialize the function. Ignored if approximate is False
-    :param compute_exact_interval: How frequently to exactly recompute the
-        exact multpliers when approximating. Defaults to never. Ignored
-        if approximate is False
     :param batchwise: whether to treat all instances of the constraints across
         the batch as separate constraints. If set to True, will ignore the 
         "reduction" argument. WARNING: batchwise constraining is unstable 
@@ -75,7 +71,6 @@ def constrain_loss(
             reduced_constraints,
             parameters,
             state,
-            compute_exact_interval=compute_exact_interval,
             warn=warn,
             allow_unused=True,
             return_timing=True,

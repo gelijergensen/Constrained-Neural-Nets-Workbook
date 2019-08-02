@@ -45,18 +45,6 @@ class Jacobian_Approximation_State(object):
         self.last_parameters = last_parameters
         self.last_loss = last_loss
         self.last_constraints = last_constraints
-        self.iteration = 0
-
-    def update(
-        self, loss_jacobian, constraint_jacobian, parameters, loss, constraints
-    ):
-        self.loss_jacobian = loss_jacobian
-        self.loss_jacobian = loss_jacobian
-        self.constraint_jacobian = constraint_jacobian
-        self.last_parameters = parameters
-        self.last_loss = loss
-        self.last_constraints = constraints
-        self.iteration += 1
 
 
 def compute_approximate_multipliers(
@@ -64,7 +52,6 @@ def compute_approximate_multipliers(
     constraints,
     parameters,
     state=None,
-    compute_exact_interval=None,
     return_timing=False,
     allow_unused=False,
     warn=True,
@@ -81,8 +68,6 @@ def compute_approximate_multipliers(
     :param parameters: an iterable of the parameters to optimize
     :param state: state of the approximation, as returned by this function. Set
         to None to reinitialize the function
-    :param compute_exact_interval: How frequently to exactly recompute the
-        exact multpliers when approximating. Defaults to never
     :param return_timing: whether to also return the timing data
     :param warn: whether to warn if the constraints are ill-conditioned. If set
         to "error", then will throw a RuntimeError if this occurs
@@ -110,7 +95,7 @@ def compute_approximate_multipliers(
 
     start_time = perf_counter()
 
-    if state is None or state.iteration + 1 == compute_exact_interval:
+    if state is None:
         jac_fT = torch.cat(
             [
                 jac.view(*loss.size(), -1)
@@ -162,11 +147,6 @@ def compute_approximate_multipliers(
         )
         delta_parameters_dot_product = delta_parameters @ delta_parameters
         delta_loss = (loss - state.last_loss).view(1)
-        # ger is the outer product operation
-        print(f"delta_parameters.size(): {delta_parameters.size()}")
-        print(
-            f"(delta_loss - (state.loss_jacobian @ delta_parameters)).size(): {(delta_loss - (state.loss_jacobian @ delta_parameters)).size()}"
-        )
         jac_fT = (
             state.loss_jacobian
             + torch.ger(
@@ -187,7 +167,7 @@ def compute_approximate_multipliers(
             / delta_parameters_dot_product
         )
         start_time = record_timing(start_time, Timing_Events.APPROXIMATE_JG)
-        state.update(
+        state = Jacobian_Approximation_State(
             jac_fT,
             jac_g,
             [x.clone().detach() for x in parameters],
@@ -230,6 +210,7 @@ def compute_approximate_multipliers(
             )
             if warn == "error":
                 raise rte
+
         multipliers = untransformed_multipliers.new_zeros(
             untransformed_multipliers.size()
         )
