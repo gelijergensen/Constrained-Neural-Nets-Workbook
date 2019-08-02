@@ -20,25 +20,6 @@ from .monitor import ProofOfConstraintMonitor
 __all__ = ["run_experiment", "default_configuration"]
 
 
-def abs_value_decorator(fn):
-    @functools.wraps(fn)
-    def decorated(*args, **kwargs):
-        return torch.abs(fn(*args, **kwargs))
-
-    return decorated
-
-
-def mean_absolute_value_decorator(fn):
-    """Take mean of abs along batch dimension"""
-
-    @functools.wraps(fn)
-    def decorated(*args, **kwargs):
-        return fn(*args, **kwargs)
-        # return torch.mean(torch.abs(fn(*args, **kwargs)), dim=0)
-
-    return decorated
-
-
 def default_configuration():
     """Default configuration for the experiment. Recognized kwargs:
     frequency: frequency of the wave equation. Defaults to 1.0
@@ -71,7 +52,8 @@ def default_configuration():
         "model_act": nn.ReLU(),
         "model_final_act": None,
         "learning_rate": 0.01,
-        "method": "average",
+        "method": "constrained",
+        "reduction": None,
     }
 
 
@@ -100,12 +82,12 @@ def build_model_and_optimizer(configuration):
         final_activation=configuration["model_final_act"],
     )
     opt = optim.Adam(model.parameters(), lr=configuration["learning_rate"])
-    # We need the entire batch of losses, not it's sum
     return model, opt
 
 
 def get_loss_and_constraint(configuration):
     """Retrieves the loss and constraint"""
+    # We need the entire batch of losses, not it's sum
     loss = nn.MSELoss(reduction="none")
     constraint = helmholtz_equation
     return loss, constraint
@@ -184,42 +166,27 @@ def run_experiment(
     model, opt = build_model_and_optimizer(kwargs)
     loss, constraint = get_loss_and_constraint(kwargs)
 
-    # Setup the metrics to be observed during training and evaluations
-
-    def get_metrics():
-        # This is done this way to ensure we construct different tensor functions,
-        # which is important because otherwise the computation graphs can be deleted
-        return {
-            # 'loss':  GradientLoss(loss, output_transform=lambda args: (args[2], args[1])),
-            # 'constraint':
-            # GradientConstraint(
-            #     constraint,
-            #     output_transform=lambda args: (
-            #         args[2], args[0], {'k': kwargs['frequency']})
-            # )
-        }
-
     # This is the trainer because we provide the optimizer
     trainer = create_engine(
         model,
         loss,
         constraint,
         opt,
-        metrics=get_metrics(),
         monitor=training_monitor,
         method=kwargs["method"],
+        reduction=kwargs["reduction"],
         k=kwargs["frequency"],
     )
 
-    # These are not trainers because we don't provide the optimizer
+    # These are not trainers simply because we don't provide the optimizer
     if evaluate_training:
         train_evaluator = create_engine(
             model,
             loss,
             constraint,
-            metrics=get_metrics(),
             monitor=evaluation_train_monitor,
             method=kwargs["method"],
+            reduction=kwargs["reduction"],
             k=kwargs["frequency"],
         )
     else:
@@ -229,9 +196,9 @@ def run_experiment(
             model,
             loss,
             constraint,
-            metrics=get_metrics(),
             monitor=evaluation_test_monitor,
             method=kwargs["method"],
+            reduction=kwargs["reduction"],
             k=kwargs["frequency"],
         )
     else:
@@ -240,9 +207,11 @@ def run_experiment(
     # Ensure evaluation happens once per epoch
     @trainer.on(Events.EPOCH_COMPLETED)
     def run_evaluation(trainer):
-        if training_monitor is not None:
+        if training_monitor is not None and should_log:
             summary = training_monitor.summarize()
-            log(f"Epoch[{trainer.state.epoch}] Training (Training) Summary - {summary}")
+            log(
+                f"Epoch[{trainer.state.epoch}] Training (Training) Summary - {summary}"
+            )
 
         if evaluate_training:
             if should_log:
@@ -250,9 +219,11 @@ def run_experiment(
                     f"Epoch[{trainer.state.epoch}] - Evaluating on training data..."
                 )
             train_evaluator.run(train_dl)
-            if evaluation_train_monitor is not None:
+            if evaluation_train_monitor is not None and should_log:
                 summary = evaluation_train_monitor.summarize()
-                log(f"Epoch[{trainer.state.epoch}] Evaluation (Training) Summary - {summary}")
+                log(
+                    f"Epoch[{trainer.state.epoch}] Evaluation (Training) Summary - {summary}"
+                )
 
         if evaluate_testing:
             if should_log:
@@ -260,9 +231,11 @@ def run_experiment(
                     f"Epoch[{trainer.state.epoch}] - Evaluating on testing data..."
                 )
             test_evaluator.run(test_dl)
-            if evaluation_test_monitor is not None:
+            if evaluation_test_monitor is not None and should_log:
                 summary = evaluation_test_monitor.summarize()
-                log(f"Epoch[{trainer.state.epoch}] Evaluation (Testing) Summary  - {summary}")
+                log(
+                    f"Epoch[{trainer.state.epoch}] Evaluation (Testing) Summary  - {summary}"
+                )
 
         if should_checkpoint:
             checkpointer(trainer)

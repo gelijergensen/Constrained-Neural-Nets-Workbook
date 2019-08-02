@@ -36,7 +36,7 @@ CONFIGURATIONS = list(
             "batch_size": [100],
             "model_size": [[20, 20, 20]],
             "learning_rate": [1e-3],
-            "method": ["average", "batchwise", "unconstrained"],
+            "method": ["constrained", "batchwise", "unconstrained"],
             "model_act": [nn.Tanh(), nn.SELU()],
             "num_epochs": [200],
             "save_directory": ["results/checkpoints"],
