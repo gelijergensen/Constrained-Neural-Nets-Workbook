@@ -24,14 +24,15 @@ def test_proof_of_constraint():
         "constrained",
         "batchwise",
         "reduction",
+        "approximate",
         "unconstrained",
         "no-loss",
         "non-projecting",
     ]:
-        reduction = None if method != "reduction" else Lp_Reduction(1)
+        reduction = (
+            Lp_Reduction(1) if method in ["reduction", "approximate"] else None
+        )
         save_file = f"{save_file_base}_{method}"
-
-        print(reduction)
 
         num_epochs = 1
         final_result = run_experiment(

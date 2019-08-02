@@ -64,7 +64,7 @@ def compute_approximate_multipliers(
     constraints,
     parameters,
     state=None,
-    recompute_jacobian_interval=None,
+    compute_exact_interval=None,
     return_timing=False,
     allow_unused=False,
     warn=True,
@@ -81,8 +81,8 @@ def compute_approximate_multipliers(
     :param parameters: an iterable of the parameters to optimize
     :param state: state of the approximation, as returned by this function. Set
         to None to reinitialize the function
-    :param recompute_jacobian_interval: How frequently to exactly recompute the
-        jacobians (in iterations). Defaults to Never
+    :param compute_exact_interval: How frequently to exactly recompute the
+        exact multpliers when approximating. Defaults to never
     :param return_timing: whether to also return the timing data
     :param warn: whether to warn if the constraints are ill-conditioned. If set
         to "error", then will throw a RuntimeError if this occurs
@@ -110,7 +110,7 @@ def compute_approximate_multipliers(
 
     start_time = perf_counter()
 
-    if state is None or state.iteration + 1 == recompute_jacobian_interval:
+    if state is None or state.iteration + 1 == compute_exact_interval:
         jac_fT = torch.cat(
             [
                 jac.view(*loss.size(), -1)

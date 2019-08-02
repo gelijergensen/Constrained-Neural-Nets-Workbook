@@ -47,6 +47,7 @@ def create_engine(
     guard=True,
     method="unconstrained",
     reduction=None,
+    compute_exact_interval=None,
     **constraint_kwargs,
 ):
     """Creates an engine with the necessary components. If optimizer is not
@@ -70,6 +71,8 @@ def create_engine(
             all constraints within the batch
         "reduction" - apply reduction before computing constraints. If no 
             reduction is specified, will throw error
+        "approximate" - approximate the optimal constraints using Broyden's 
+            trick. If no reduction is specified, will throw error
         "unconstrained" - don't constrain. Used as a control method
         "no-loss" - intended entirely for debugging. Ignores the loss function
             entirely and just tries to satisfy the constraints
@@ -77,7 +80,9 @@ def create_engine(
             destroys the exponential convergence guarantee, but should be useful
             for debugging
     :param reduction: reduction to apply to constraints before computing 
-        constrained loss if method == "reduction"
+        constrained loss if method == "reduction" or "approximate"
+    :param compute_exact_interval: how frequently to compute the exact 
+        multipliers. Only used if method=="approximate"
     :param constraint_kwargs: all other parameters will be passed along to the
         constraint function
     :returns: an ignite.engine.Engine whose output is (xb, yb, out) for every
@@ -178,6 +183,22 @@ def create_engine(
                 engine.state.loss,
                 engine.state.constraints,
                 list(model.parameters()),
+                return_multipliers=True,
+                return_timing=True,
+                reduction=reduction,
+            )
+            engine.state.times.update(multiplier_computation_timing)
+        elif method == "approximate":
+            if reduction is None:
+                raise ValueError(
+                    "Reduction must be specified if method=='reduction'"
+                )
+            engine.state.constrained_loss, engine.state.approximation_state, engine.state.multipliers, multiplier_computation_timing = constrain_loss(
+                engine.state.loss,
+                engine.state.constraints,
+                list(model.parameters()),
+                approximate=True,
+                compute_exact_interval=compute_exact_interval,
                 return_multipliers=True,
                 return_timing=True,
                 reduction=reduction,
