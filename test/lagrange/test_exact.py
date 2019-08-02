@@ -15,29 +15,29 @@ def test_compute_exact_multipliers():
     loss = torch.sum(ins)
     constraint = ins[0]
 
-    con_loss = compute_exact_multipliers(loss, constraint, [ins])
+    multipliers = compute_exact_multipliers(loss, constraint, [ins])
     j_g = torch.zeros((1, rand_size))
     j_g[0, 0] = 1.0
     j_fT = torch.ones((rand_size, 1))
     expected = (constraint - j_g @ j_fT).view(constraint.size())
-    assert torch.allclose(con_loss, expected)
+    assert torch.allclose(multipliers, expected)
 
     # multiple constraints
     ins = torch.rand(rand_size, requires_grad=True)
     loss = torch.sum(ins)
     constraint = ins
-    con_loss = compute_exact_multipliers(loss, constraint, [ins])
+    multipliers = compute_exact_multipliers(loss, constraint, [ins])
     j_g = torch.eye(rand_size)
     j_fT = torch.ones((rand_size, 1))
     expected = (constraint.view(-1, 1) - j_g @ j_fT).view(constraint.size())
-    assert torch.allclose(con_loss, expected)
+    assert torch.allclose(multipliers, expected)
 
     # batched single constraints
     ins = torch.rand(batch_size, rand_size, requires_grad=True)
     loss = torch.sum(ins, dim=-1)
     constraint = ins[:, 0].view(-1)
 
-    con_loss = compute_exact_multipliers(loss, constraint, [ins])
+    multipliers = compute_exact_multipliers(loss, constraint, [ins])
     j_g = torch.zeros((batch_size, 1, rand_size))
     j_g[:, 0, 0] = 1.0
     j_fT = torch.ones((batch_size, rand_size, 1))
@@ -45,14 +45,14 @@ def test_compute_exact_multipliers():
         constraint.size()
     )
 
-    assert torch.allclose(con_loss, expected)
+    assert torch.allclose(multipliers, expected)
 
     # batched multiple constraints
     ins = torch.rand(batch_size, rand_size, requires_grad=True)
     loss = torch.sum(ins, dim=-1)
     constraint = ins
 
-    con_loss = compute_exact_multipliers(loss, constraint, [ins])
+    multipliers = compute_exact_multipliers(loss, constraint, [ins])
     j_g = torch.eye(rand_size).expand(batch_size, -1, -1)
     j_fT = torch.ones((batch_size, rand_size, 1))
 
@@ -60,7 +60,7 @@ def test_compute_exact_multipliers():
         constraint.size()
     )
 
-    assert torch.allclose(con_loss, expected)
+    assert torch.allclose(multipliers, expected)
 
     # separate parameters
     other_rand_size = np.random.randint(2, 10)
@@ -72,7 +72,7 @@ def test_compute_exact_multipliers():
     loss = torch.sum(ins1, dim=-1) + torch.sum(ins2, dim=(-1, -2))
     constraint = (ins1[:, 0] + ins2[:, 0, 0]).view(-1)
 
-    con_loss = compute_exact_multipliers(loss, constraint, [ins1, ins2])
+    multipliers = compute_exact_multipliers(loss, constraint, [ins1, ins2])
     j_g = torch.zeros((batch_size, 1, rand_size + other_rand_size * rand_size))
     j_g[:, 0, 0] = 1.0
     j_g[:, 0, rand_size] = 1.0
@@ -87,6 +87,6 @@ def test_compute_exact_multipliers():
     constraint = torch.stack([ins[:, 0], ins[:, 0]], dim=-1)
 
     with pytest.raises(RuntimeError):
-        con_loss = compute_exact_multipliers(
+        multipliers = compute_exact_multipliers(
             loss, constraint, [ins], warn="error"
         )
