@@ -93,7 +93,10 @@ def create_engine(
     ground_epochs = (
         ground_approximation is not None and "epoch" in ground_approximation
     )
-    ground_frequency = int(ground_approximation.split(" ")[0])
+    if ground_approximation is not None:
+        ground_frequency = int(ground_approximation.split(" ")[0])
+    else:
+        ground_frequency = None
 
     def should_ground(engine):
         # If this is evaluation, there's no way the parameters can change

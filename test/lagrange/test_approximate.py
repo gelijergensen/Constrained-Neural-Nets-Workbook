@@ -28,7 +28,7 @@ def test_compute_approximate_multipliers():
     multipliers, state = compute_approximate_multipliers(
         loss, constraint, [ins], state=state
     )
-    assert torch.allclose(multipliers, expected_multipliers)
+    assert torch.allclose(multipliers, expected_multipliers, atol=1e-3)
 
     # Multiple constraints without state
     ins = torch.rand(rand_size, requires_grad=True)
@@ -47,7 +47,7 @@ def test_compute_approximate_multipliers():
     multipliers, state = compute_approximate_multipliers(
         loss, constraint, [ins], state=state
     )
-    assert torch.allclose(multipliers, expected_multipliers)
+    assert torch.allclose(multipliers, expected_multipliers, atol=1e-3)
 
     # Separate parameters without state
     other_rand_size = np.random.randint(2, 10)
@@ -74,4 +74,4 @@ def test_compute_approximate_multipliers():
     multipliers, state = compute_approximate_multipliers(
         loss, constraint, [ins1, ins2], state=state
     )
-    assert torch.allclose(multipliers, expected_multipliers)
+    assert torch.allclose(multipliers, expected_multipliers, atol=1e-3)
