@@ -54,6 +54,7 @@ def default_configuration():
         "learning_rate": 0.01,
         "method": "constrained",
         "reduction": None,
+        "ground_approximation": None,
     }
 
 
@@ -175,6 +176,7 @@ def run_experiment(
         monitor=training_monitor,
         method=kwargs["method"],
         reduction=kwargs["reduction"],
+        ground_approximation=kwargs["ground_approximation"],
         k=kwargs["frequency"],
     )
 
@@ -187,6 +189,7 @@ def run_experiment(
             monitor=evaluation_train_monitor,
             method=kwargs["method"],
             reduction=kwargs["reduction"],
+            ground_approximation=kwargs["ground_approximation"],
             k=kwargs["frequency"],
         )
     else:
@@ -199,6 +202,7 @@ def run_experiment(
             monitor=evaluation_test_monitor,
             method=kwargs["method"],
             reduction=kwargs["reduction"],
+            ground_approximation=kwargs["ground_approximation"],
             k=kwargs["frequency"],
         )
     else:

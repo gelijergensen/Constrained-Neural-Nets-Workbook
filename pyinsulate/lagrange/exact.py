@@ -20,8 +20,8 @@ class Timing_Events(Enum):
     COMPUTE_PRE_MULTIPLIERS = "exact multipliers: compute pre-multipliers"
     CHOLESKY = "exact multipliers: cholesky"
     CHOLESKY_SOLVE = "exact multipliers: choleksy solve"
-    LEAST_SQUARES = "exact multipliers: least squares"
     ERRORED = "exact multipliers: errored"
+    LEAST_SQUARES = "exact multipliers: least squares"
 
 
 def compute_exact_multipliers(
@@ -35,6 +35,17 @@ def compute_exact_multipliers(
     """Assumes that the constraints are well-conditioned and computes the
     optimal Lagrange multipliers
 
+    :param loss: tensor corresponding to the evalutated loss
+    :param constraints: a single tensor corresponding to the evaluated
+        constraints (you may need to torch.stack() first)
+    :param parameters: an iterable of the parameters to optimize
+    :param return_timing: whether to also return the timing data
+    :param warn: whether to warn if the constraints are ill-conditioned. If set
+        to "error", then will throw a RuntimeError if this occurs
+    :param allow_used: whether to allow some parameter to not be an input of
+        the loss or constraints function. Defaults to False
+    :returns: multipliers (, timing), if the timing is also requested. 
+        Multipliers will have the same shape as the constraints
     :throws: RuntimeError if the jacobian of the constraints are not full rank
     """
     # multipliers = (J(g(s)) J(g(s))^T)^{-1} (g(s) - J(g(s)) J(f(s))^T)
