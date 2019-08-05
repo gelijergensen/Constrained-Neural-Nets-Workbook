@@ -236,9 +236,13 @@ def plot_time(
     if time_keys is None:
         time_keys = set()
         for monitor in monitors:
-            print(_clean_labels(monitor.time_keys))
+            print(_clean_labels(monitor.timing[0][0].keys()))
             time_keys.update(
-                [key for key in monitor.time_keys if "error" not in key]
+                [
+                    key
+                    for key in monitor.timing[0][0].keys()
+                    if "error" not in key
+                ]
             )
         time_keys = list(time_keys)
 
@@ -250,9 +254,15 @@ def plot_time(
 
         average_times = list()
         for key in time_keys:
-            if key not in monitor.time_keys:
+            if key not in monitor.timing[0][0]:
                 average_times.append(0.0)
-            times = np.array(monitor.get(key))
+                continue
+            times = np.array(
+                [
+                    [batch_time.get(key, -999.0) for batch_time in epoch_times]
+                    for epoch_times in monitor.timing
+                ]
+            )
             # average ignoring invalid observations and flag values of -999.0
             average_times.append(
                 np.nan_to_num(

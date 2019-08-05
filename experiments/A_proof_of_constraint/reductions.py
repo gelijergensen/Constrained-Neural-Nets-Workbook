@@ -7,20 +7,28 @@ class Lp_Reduction(object):
     """Computes the mean of the p-th elementwise power of the constraints along 
     the batch for each constraint"""
 
-    def __init__(self, p):
+    def __init__(self, p, clamp=None):
         self.p = p
         self.even = p % 2 == 0
+        self.clamp = clamp
 
     def __call__(self, constraints):
         if self.p == 1:
-            return torch.mean(torch.abs(constraints), dim=0)
+            mean_constraints = torch.mean(torch.abs(constraints), dim=0)
         if self.even:
-            return torch.mean(torch.pow(constraints, self.p), dim=0)
+            mean_constraints = torch.mean(torch.pow(constraints, self.p), dim=0)
         else:
-            return torch.mean(torch.pow(torch.abs(constraints), self.p), dim=0)
+            mean_constraints = torch.mean(
+                torch.pow(torch.abs(constraints), self.p), dim=0
+            )
+
+        if self.clamp is not None:
+            return torch.clamp(mean_constraints, max=self.clamp)
+        else:
+            return mean_constraints
 
     def __str__(self):
-        return f"L{self.p}_Reduction()"
+        return f"L{self.p}_Reduction(clamp={self.clamp})"
 
 
 class Huber_Reduction(object):
@@ -29,12 +37,14 @@ class Huber_Reduction(object):
     huber_error(a) = |a| > delta ? 0.5*a^2 : delta(|a| - 0.5*delta)
     """
 
-    def __init__(self, delta=1.0):
+    def __init__(self, delta=1.0, clamp=None):
         self.delta = delta
+        self.clamp = clamp
 
     def __call__(self, constraints):
         constraints_abs = torch.abs(constraints)
-        return torch.mean(
+
+        mean_constraints = torch.mean(
             torch.where(
                 constraints_abs > self.delta,
                 0.5 * constraints_abs * constraints_abs,
@@ -42,7 +52,11 @@ class Huber_Reduction(object):
             ),
             dim=0,
         )
+        if self.clamp is not None:
+            return torch.clamp(mean_constraints, max=self.clamp)
+        else:
+            return mean_constraints
 
     def __str__(self):
-        return f"Huber_Reduction({self.delta})"
+        return f"Huber_Reduction({self.delta}, clamp={self.clamp})"
 
