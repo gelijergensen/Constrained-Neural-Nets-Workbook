@@ -42,9 +42,6 @@ def test_proof_of_constraint():
             num_epochs,
             save_directory=directory,
             save_file=save_file,
-            num_points=20,
-            num_training=10,
-            batch_size=10,
             method=method,
             reduction=reduction,
         )
