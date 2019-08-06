@@ -13,7 +13,7 @@ from pyinsulate.pdes import helmholtz_equation
 from .checkpointer import ModelAndMonitorCheckpointer
 from .dataloader import get_multiwave_dataloaders
 from .event_loop import create_engine, Sub_Batch_Events
-from .model import ParameterizedDense
+from .model import Dense, ParameterizedDense
 from .monitor import ProofOfConstraintMonitor
 
 
@@ -55,6 +55,7 @@ def default_configuration():
             "sampling": "uniform",
         },
         "batch_size": 10,
+        "architecture": Dense,
         "model_size": [20],
         "model_act": nn.Tanh(),
         "model_final_act": None,
@@ -77,7 +78,8 @@ def get_data(configuration):
 
 def build_model_and_optimizer(configuration):
     """Creates the model, optimizer"""
-    model = ParameterizedDense(
+    architecture = configuration["architecture"]
+    model = architecture(
         1,  # dimension of input
         3,  # dimension of parameters
         1,  # dimension of output
