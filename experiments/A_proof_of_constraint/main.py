@@ -11,9 +11,9 @@ from pyinsulate.ignite import GradientConstraint, GradientLoss
 from pyinsulate.pdes import helmholtz_equation
 
 from .checkpointer import ModelAndMonitorCheckpointer
-from .dataloader import get_singlewave_dataloaders
+from .dataloader import get_multiwave_dataloaders
 from .event_loop import create_engine, Sub_Batch_Events
-from .model import Dense
+from .model import ParameterizedDense
 from .monitor import ProofOfConstraintMonitor
 
 
@@ -22,34 +22,41 @@ __all__ = ["run_experiment", "default_configuration"]
 
 def default_configuration():
     """Default configuration for the experiment. Recognized kwargs:
-    frequency: frequency of the wave equation. Defaults to 1.0
-    phase: phase of the wave_equation. Defaults to None (random)
-    amplitude: amplitude of the wave equation. Defaults to 1.0
-    num_points: number of points to evaluate
-    num_training: number of training datapoints
-    training_sampling: one of
-        "start" - provide the first num_training points as training
-        "uniform" - provide num_training points distributed evenly across the
-            domain
-        "random" - randomly sample points for training
-    batch_size: batch size. Defaults to 32
+    seed: seed to use for all random number generation
+    training_parameterizations: dictionary of parameters for training data. See
+        dataloader.get_multiwave_dataloaders() for more details
+    testing_parameterizations: dictionary of parameters for testing data. See
+        dataloader.get_multiwave_dataloaders() for more details
+    batch_size: batch size. Defaults to 100
     model_size: a list of integers for the lengths of the layers of the
         model. Defaults to [20].
-    model_act: activation function for the model. Defaults to nn.ReLU()
+    model_act: activation function for the model. Defaults to nn.Tanh()
     model_final_act: activation function for last layer. Defaults to None
     learning_rate: learning rate. Defaults to 0.01
     method: method to use for constraining. See the event loop for more details
+    reduction: reduction to use for constraining. See event loop for details
+    ground_approximation: string for when to ground the approximation. See 
+        event loop for more details
     """
     return {
-        "frequency": 1.0,
-        "phase": None,
-        "amplitude": 1.0,
-        "num_points": 100000,
-        "num_training": 100,
-        "training_sampling": "start",
-        "batch_size": 32,
+        "seed": None,
+        "training_parameterizations": {
+            "amplitudes": [1.0],
+            "frequencies": [1.0],
+            "phases": [0.0],
+            "num_points": 20,
+            "sampling": "uniform",
+        },
+        "testing_parameterizations": {
+            "amplitudes": [1.0],
+            "frequencies": [1.0],
+            "phases": [0.0],
+            "num_points": 20,
+            "sampling": "uniform",
+        },
+        "batch_size": 10,
         "model_size": [20],
-        "model_act": nn.ReLU(),
+        "model_act": nn.Tanh(),
         "model_final_act": None,
         "learning_rate": 0.01,
         "method": "constrained",
@@ -58,26 +65,22 @@ def default_configuration():
     }
 
 
-def get_data(configuration, return_equation=False):
+def get_data(configuration):
     """Grabs the training and testing dataloaders for this configuration"""
-    return get_singlewave_dataloaders(
-        frequency=configuration["frequency"],
-        phase=configuration["phase"],
-        amplitude=configuration["amplitude"],
-        num_points=configuration["num_points"],
-        num_training=configuration["num_training"],
-        sampling=configuration["training_sampling"],
+    return get_multiwave_dataloaders(
+        configuration["training_parameterizations"],
+        configuration["testing_parameterizations"],
+        seed=configuration["seed"],
         batch_size=configuration["batch_size"],
-        seed=configuration.get("seed", None),
-        return_equation=return_equation,
     )
 
 
 def build_model_and_optimizer(configuration):
     """Creates the model, optimizer"""
-    model = Dense(
-        1,
-        1,
+    model = ParameterizedDense(
+        1,  # dimension of input
+        3,  # dimension of parameters
+        1,  # dimension of output
         sizes=configuration["model_size"],
         activation=configuration["model_act"],
         final_activation=configuration["model_final_act"],
@@ -135,10 +138,7 @@ def run_experiment(
         log(kwargs)
 
     # Get the data
-    train_dl, test_dl, parameterization = get_data(kwargs)
-    kwargs.update(
-        parameterization
-    )  # ensures any random variables are specified
+    train_dl, test_dl = get_data(kwargs)
 
     # Setup Monitors and Checkpoints
     training_monitor = ProofOfConstraintMonitor()
@@ -177,7 +177,6 @@ def run_experiment(
         method=kwargs["method"],
         reduction=kwargs["reduction"],
         ground_approximation=kwargs["ground_approximation"],
-        k=kwargs["frequency"],
     )
 
     # These are not trainers simply because we don't provide the optimizer
@@ -190,7 +189,6 @@ def run_experiment(
             method=kwargs["method"],
             reduction=kwargs["reduction"],
             ground_approximation=kwargs["ground_approximation"],
-            k=kwargs["frequency"],
         )
     else:
         train_evaluator = None
@@ -203,7 +201,6 @@ def run_experiment(
             method=kwargs["method"],
             reduction=kwargs["reduction"],
             ground_approximation=kwargs["ground_approximation"],
-            k=kwargs["frequency"],
         )
     else:
         test_evaluator = None

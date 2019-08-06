@@ -48,7 +48,6 @@ def create_engine(
     method="unconstrained",
     reduction=None,
     ground_approximation=None,
-    **constraint_kwargs,
 ):
     """Creates an engine with the necessary components. If optimizer is not
     provided, then will run inference
@@ -87,8 +86,6 @@ def create_engine(
     :param ground_approximation: string for when to recompute the exact 
         multipliers to ground the approximation. Should consist of a number 
         followed by either "batches" or "epochs". e.g. "1 epochs", "3 batches"
-    :param constraint_kwargs: all other parameters will be passed along to the
-        constraint function
     :returns: an ignite.engine.Engine whose output is (xb, yb, out) for every
         iteration
     """
@@ -162,7 +159,7 @@ def create_engine(
             engine, Sub_Batch_Events.DATA_LOADED, section_start
         )
 
-        engine.state.out = model(engine.state.xb)
+        engine.state.out = model(*engine.state.xb)
         section_start = end_section(
             engine, Sub_Batch_Events.FORWARD_PASS_COMPLETED, section_start
         )
@@ -196,7 +193,7 @@ def create_engine(
         )
 
         engine.state.constraints = constraint_fn(
-            engine.state.out, engine.state.xb, **constraint_kwargs
+            engine.state.out, *engine.state.xb
         )
         section_start = end_section(
             engine, Sub_Batch_Events.CONSTRAINTS_COMPUTED, section_start
