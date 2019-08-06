@@ -321,7 +321,8 @@ def plot_time(
 
 
 def plot_model_predictions(
-    data,
+    inputs,
+    outputs,
     prediction_sets,
     labels,
     savefile,
@@ -332,8 +333,9 @@ def plot_model_predictions(
 ):
     """
 
-    :param data: a tuple (inputs, outputs, is_training) where is_training
-        is a boolean mask for which data samples were training data
+    :param inputs: numpy array of inputs to model (not including any 
+        parameterization)
+    :param outputs: numpy array of outputs of model
     :param prediction_sets: a list of a list of model predictions (can plot
         multiple models)
     :param labels: a list of the labels for each model
@@ -344,19 +346,9 @@ def plot_model_predictions(
     :param directory: directory to save the file in. Defaults to the results dir
     :returns: the figure
     """
-    inputs, outputs, training_mask = data
-
     # Plot the datapoints
     fig = plt.figure()
-    plt.plot(
-        inputs[training_mask], outputs[training_mask], "o", color="#555555"
-    )
-    plt.plot(
-        inputs[np.logical_not(training_mask)],
-        outputs[np.logical_not(training_mask)],
-        "o",
-        color="#BBBBBB",
-    )
+    plt.plot(inputs, outputs, "-.", color="black")
     for i, (predictions, label) in enumerate(zip(prediction_sets, labels)):
         plt.plot(inputs, predictions, "-", label=label)
     plt.title(title)
