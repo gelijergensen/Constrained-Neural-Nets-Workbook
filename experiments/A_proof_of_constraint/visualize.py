@@ -24,6 +24,7 @@ def plot_loss(
     constrained=False,
     title="Losses",
     ylabel="Average loss",
+    log=False,
     directory=DEFAULT_DIRECTORY,
 ):
     """Plots several loss curves
@@ -36,6 +37,7 @@ def plot_loss(
         Defaults to unconstrained
     :param title: title of the figure
     :param ylabel: label for the y-axis
+    :param log: whether to plot a log-plot
     :param directory: directory to save the file in. Defaults to the results dir
     :returns: the figure
     """
@@ -89,6 +91,10 @@ def plot_loss(
     plt.xlabel("Epoch")
     plt.legend()
 
+    # possibly make log plot
+    if log:
+        plt.yscale("log")
+
     plt.tight_layout()
 
     if savefile is not None:
@@ -106,6 +112,7 @@ def plot_constraints(
     savefile,
     title="Constraint magnitude",
     ylabel="Average constraint magnitude",
+    log=False,
     directory=DEFAULT_DIRECTORY,
 ):
     """Plots the magnitude of the constraints
@@ -115,6 +122,7 @@ def plot_constraints(
     :param savefile: name of the file to save. If none, then will not save
     :param title: title of the figure
     :param ylabel: label for the y-axis
+    :param log: whether to plot a log-plot
     :param directory: directory to save the file in. Defaults to the results dir
     :returns: the figure
     """
@@ -167,6 +175,10 @@ def plot_constraints(
     plt.xlabel("Epoch")
     plt.legend()
 
+    # possibly make log plot
+    if log:
+        plt.yscale("log")
+
     plt.tight_layout()
 
     if savefile is not None:
@@ -174,38 +186,6 @@ def plot_constraints(
         print(f"Saving constraint satisfaction plot to {filepath}")
         plt.savefig(filepath, dpi=300)
     return fig
-
-    # epochs = monitors[0].epoch
-
-    # all_mean_constraints = np.zeros((len(epochs), len(labels)))
-    # for i, monitor in enumerate(monitors):
-    #     constraints = monitor.constraints
-    #     batch_sizes = monitor.batch_size
-
-    #     all_mean_constraints[:, i] = np.array(
-    #         [
-    #             np.average(
-    #                 [torch.norm(con).item() for con in constraint],
-    #                 weights=batch_size,
-    #             )
-    #             for constraint, batch_size in zip(constraints, batch_sizes)
-    #         ]
-    #     )
-
-    # fig = plt.figure(figsize=(4, 3))
-    # plt.plot(epochs, all_mean_constraints)
-    # plt.title(title)
-    # plt.ylabel(ylabel)
-    # plt.xlabel("Epoch")
-    # plt.legend(labels)
-
-    # plt.tight_layout()
-
-    # if savefile is not None:
-    #     filepath = f"{directory}/{savefile}.png"
-    #     print(f"Saving constraint satisfaction plot to {filepath}")
-    #     plt.savefig(filepath, dpi=300)
-    # return fig
 
 
 def plot_time(
@@ -236,9 +216,13 @@ def plot_time(
     if time_keys is None:
         time_keys = set()
         for monitor in monitors:
-            print(_clean_labels(monitor.time_keys))
+            print(_clean_labels(monitor.timing[0][0].keys()))
             time_keys.update(
-                [key for key in monitor.time_keys if "error" not in key]
+                [
+                    key
+                    for key in monitor.timing[0][0].keys()
+                    if "error" not in key and "recomputed" not in key
+                ]
             )
         time_keys = list(time_keys)
 
@@ -250,9 +234,15 @@ def plot_time(
 
         average_times = list()
         for key in time_keys:
-            if key not in monitor.time_keys:
+            if key not in monitor.timing[0][0]:
                 average_times.append(0.0)
-            times = np.array(monitor.get(key))
+                continue
+            times = np.array(
+                [
+                    [batch_time.get(key, -999.0) for batch_time in epoch_times]
+                    for epoch_times in monitor.timing
+                ]
+            )
             # average ignoring invalid observations and flag values of -999.0
             average_times.append(
                 np.nan_to_num(

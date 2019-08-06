@@ -14,18 +14,18 @@ from pyinsulate.derivatives import jacobian
 class Timing_Events(Enum):
     """A set of Sub-Batch events"""
 
-    APPROXIMATE_JF = "approximate multipliers: approximate loss jacobian"
-    APPROXIMATE_JG = "approximate multipliers: approximate constraint jacobian"
-    COMPUTE_JF = "exact multipliers: compute loss jacobian"
-    COMPUTE_JG = "exact multipliers: compute constraint jacobian"
-    COMPUTE_GRAM = "approximate multipliers: compute gram matrix"
-    COMPUTE_PRE_MULTIPLIERS = "approximate multipliers: compute pre-multipliers"
-    CHOLESKY = "approximate multipliers: cholesky"
-    CHOLESKY_SOLVE = "approximate multipliers: choleksy solve"
-    ERRORED = "approximate multipliers: errored"
-    LEAST_SQUARES = "approximate multipliers: least squares"
-    RECOMPUTED_JACOBIANS = "approximate multipliers: recomputed exact jacobians"
-    UPDATE_STATE = "approximate multipliers: update state"
+    APPROXIMATE_JF = "multipliers: approximate loss jacobian"
+    APPROXIMATE_JG = "multipliers: approximate constraint jacobian"
+    COMPUTE_JF = "multipliers: compute loss jacobian"
+    COMPUTE_JG = "multipliers: compute constraint jacobian"
+    COMPUTE_GRAM = "multipliers: compute gram matrix"
+    COMPUTE_PRE_MULTIPLIERS = "multipliers: compute pre-multipliers"
+    CHOLESKY = "multipliers: cholesky"
+    CHOLESKY_SOLVE = "multipliers: choleksy solve"
+    ERRORED = "multipliers: errored"
+    LEAST_SQUARES = "multipliers: least squares"
+    RECOMPUTED_JACOBIANS = "multipliers: recomputed exact jacobians"
+    UPDATE_STATE = "multipliers: update state"
 
 
 class Jacobian_Approximation_State(object):
@@ -132,9 +132,9 @@ def compute_approximate_multipliers(
             constraints.clone().detach(),
         )
         start_time = record_timing(start_time, Timing_Events.UPDATE_STATE)
-        timing[Timing_Events.APPROXIMATE_JF] = -999.0
-        timing[Timing_Events.APPROXIMATE_JG] = -999.0
-        timing[Timing_Events.RECOMPUTED_JACOBIANS] = True
+        timing[Timing_Events.APPROXIMATE_JF.value] = -999.0
+        timing[Timing_Events.APPROXIMATE_JG.value] = -999.0
+        timing[Timing_Events.RECOMPUTED_JACOBIANS.value] = True
     else:
         # Broyden's trick: (for iterative approximations to the Jacobian of the function y(s))
         # J(y_{k+1})~= Y_{k+1} = Y_k + (1/((s_{k+1} - s_k)^T(s_{k+1} - s_k)) ...
@@ -175,9 +175,9 @@ def compute_approximate_multipliers(
             constraints.clone().detach(),
         )
         start_time = record_timing(start_time, Timing_Events.UPDATE_STATE)
-        timing[Timing_Events.COMPUTE_JF] = -999.0
-        timing[Timing_Events.COMPUTE_JG] = -999.0
-        timing[Timing_Events.RECOMPUTED_JACOBIANS] = False
+        timing[Timing_Events.COMPUTE_JF.value] = -999.0
+        timing[Timing_Events.COMPUTE_JG.value] = -999.0
+        timing[Timing_Events.RECOMPUTED_JACOBIANS.value] = False
 
     # Possibly batched version of J(g) * J(g)^T
     gram_matrix = torch.einsum("...ij,...kj->...ik", jac_g, jac_g)
@@ -227,6 +227,8 @@ def compute_approximate_multipliers(
         start_time = record_timing(start_time, Timing_Events.LEAST_SQUARES)
         timing[Timing_Events.ERRORED.value] = True
         timing[Timing_Events.CHOLESKY_SOLVE.value] = -999.0
+        if Timing_Events.CHOLESKY.value not in timing:
+            timing[Timing_Events.CHOLESKY.value] = -999.0
 
     if return_timing:
         return multipliers.view(original_constraints_size), state, timing

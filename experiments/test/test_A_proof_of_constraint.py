@@ -26,11 +26,14 @@ def test_proof_of_constraint():
         "reduction",
         "approximate",
         "unconstrained",
+        "soft-constrained",
         "no-loss",
         "non-projecting",
     ]:
         reduction = (
-            Lp_Reduction(1) if method in ["reduction", "approximate"] else None
+            Lp_Reduction(1)
+            if method in ["reduction", "approximate", "soft-constrained"]
+            else None
         )
         save_file = f"{save_file_base}_{method}"
 

@@ -14,14 +14,14 @@ from pyinsulate.derivatives import jacobian
 class Timing_Events(Enum):
     """A set of Sub-Batch events"""
 
-    COMPUTE_JF = "exact multipliers: compute loss jacobian"
-    COMPUTE_JG = "exact multipliers: compute constraint jacobian"
-    COMPUTE_GRAM = "exact multipliers: compute gram matrix"
-    COMPUTE_PRE_MULTIPLIERS = "exact multipliers: compute pre-multipliers"
-    CHOLESKY = "exact multipliers: cholesky"
-    CHOLESKY_SOLVE = "exact multipliers: choleksy solve"
-    ERRORED = "exact multipliers: errored"
-    LEAST_SQUARES = "exact multipliers: least squares"
+    COMPUTE_JF = "multipliers: compute loss jacobian"
+    COMPUTE_JG = "multipliers: compute constraint jacobian"
+    COMPUTE_GRAM = "multipliers: compute gram matrix"
+    COMPUTE_PRE_MULTIPLIERS = "multipliers: compute pre-multipliers"
+    CHOLESKY = "multipliers: cholesky"
+    CHOLESKY_SOLVE = "multipliers: choleksy solve"
+    ERRORED = "multipliers: errored"
+    LEAST_SQUARES = "multipliers: least squares"
 
 
 def compute_exact_multipliers(
@@ -144,6 +144,8 @@ def compute_exact_multipliers(
         start_time = record_timing(start_time, Timing_Events.LEAST_SQUARES)
         timing[Timing_Events.ERRORED.value] = True
         timing[Timing_Events.CHOLESKY_SOLVE.value] = -999.0
+        if Timing_Events.CHOLESKY.value not in timing:
+            timing[Timing_Events.CHOLESKY.value] = -999.0
 
     if return_timing:
         return multipliers.view(original_constraints_size), timing

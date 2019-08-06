@@ -2,10 +2,7 @@
 
 import numpy as np
 
-from pyinsulate.lagrange.exact import Timing_Events
 from pyinsulate.handlers import Monitor
-
-from .event_loop import Sub_Batch_Events
 
 
 class ProofOfConstraintMonitor(Monitor):
@@ -18,13 +15,7 @@ class ProofOfConstraintMonitor(Monitor):
         self.add("constrained_loss", average=False)
         self.add("batch_size", average=False)
         self.add("constraints", average=False)
-        self.time_keys = (
-            ["total"]
-            + [event.value for event in Sub_Batch_Events]
-            + [event.value for event in Timing_Events]
-        )
-        for key in self.time_keys:
-            self.add(key, average=False)
+        self.add("timing", average=False)
 
     def new_epoch(self, engine):
         super().new_epoch(engine)
@@ -43,5 +34,4 @@ class ProofOfConstraintMonitor(Monitor):
         self.set("constrained_loss", engine.state.constrained_loss.item())
         self.set("batch_size", len(engine.state.xb))
         self.set("constraints", engine.state.constraints.to("cpu"))
-        for key in self.time_keys:
-            self.set(key, engine.state.times.get(key, 0.0))
+        self.set("timing", engine.state.times.copy())
