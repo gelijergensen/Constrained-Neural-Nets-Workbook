@@ -24,7 +24,7 @@ class Timing_Events(Enum):
     CHOLESKY_SOLVE = "multipliers: choleksy solve"
     ERRORED = "multipliers: errored"
     LEAST_SQUARES = "multipliers: least squares"
-    RECOMPUTED_JACOBIANS = "multipliers: recompute exact jacobians"
+    RECOMPUTED_JACOBIANS = "multipliers: recomputed exact jacobians"
     UPDATE_STATE = "multipliers: update state"
 
 

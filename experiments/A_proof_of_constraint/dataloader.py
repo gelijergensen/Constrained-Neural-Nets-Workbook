@@ -29,7 +29,7 @@ def make_singlewave_data(frequency, phase, amplitude, num_points):
     wave_equation = construct_wave_equation(**parameterization)
 
     # Make the data a "vector", not a scalar
-    xs = torch.linspace(0, 2 * np.pi, num_points).unsqueeze(-1)
+    xs = torch.linspace(-1, 1, num_points).unsqueeze(-1)
     ys = wave_equation(xs)
     return xs, ys, parameterization, construct_wave_equation
 
