@@ -1,8 +1,6 @@
 """Tools for visualizing the results of the experiment"""
 
 import matplotlib.pyplot as plt
-import numpy as np
-import torch
 
 from .config import DEFAULT_DIRECTORY
 from .readability_utils import _clean_label, _correct_and_clean_labels
@@ -17,6 +15,7 @@ def _plot_object(
     labels,
     savefile,
     object_string,
+    retrieval_kwargs=dict(),
     title=None,
     ylabel=None,
     log=False,
@@ -28,8 +27,10 @@ def _plot_object(
         Elements of the pair can be set to None to be skipped
     :param labels: a list of strings for the label of each monitor
     :param savefile: name of the file to save. If none, then will not save
-    :param constrained: whether to plot the constrained or unconstrained loss.
-        Defaults to unconstrained
+    :param object_string: string for the object to retreive. See 
+        retrieval_utils.retrieve_object for more details
+    :param retrieval_kwargs: dictionary of any necessary kwargs for the 
+        retrieval process. See retrieval_utils.retrieve_object for more details
     :param title: title of the figure. Defaults to a cleaned version of the
         object string
     :param ylabel: label for the y-axis. Defaults to a cleaned version of 
@@ -51,7 +52,9 @@ def _plot_object(
 
         color = None
         if training_monitor is not None:
-            training_data = retrieve_object(training_monitor, object_string)
+            training_data = retrieve_object(
+                training_monitor, object_string, **retrieval_kwargs
+            )
             line2d = plt.plot(
                 training_monitor.epoch,
                 training_data,
@@ -60,7 +63,9 @@ def _plot_object(
             )
             color = line2d[0].get_color()
         if evaluation_monitor is not None:
-            evaluation_data = retrieve_object(evaluation_monitor, object_string)
+            evaluation_data = retrieve_object(
+                evaluation_monitor, object_string, **retrieval_kwargs
+            )
             plt.plot(
                 evaluation_monitor.epoch,
                 evaluation_data,
@@ -152,6 +157,43 @@ def plot_constraints(
         labels,
         savefile,
         object_string,
+        title=title,
+        ylabel=ylabel,
+        log=log,
+        directory=directory,
+    )
+
+
+def plot_constraints_diagnostics(
+    monitors,
+    labels,
+    savefile,
+    diagnostics_index,
+    title="Constraint magnitude",
+    ylabel="Average constraint magnitude",
+    log=False,
+    directory=DEFAULT_DIRECTORY,
+):
+    """Plots the magnitude of the constraints
+    
+    :param monitors: a list of monitors, e.g. [training, evaluation]
+    :param labels: a list of strings for the label of each monitor
+    :param savefile: name of the file to save. If none, then will not save
+    :param diagnostics_index: index of the diagnostics tensor to retreive. See 
+        the PDE for more details
+    :param title: title of the figure
+    :param ylabel: label for the y-axis
+    :param log: whether to plot a log-plot
+    :param directory: directory to save the file in. Defaults to the results dir
+    :returns: the figure
+    """
+    object_string = "constraints_diagnostics"
+    return _plot_object(
+        monitors,
+        labels,
+        savefile,
+        object_string,
+        retrieval_kwargs={"index": diagnostics_index},
         title=title,
         ylabel=ylabel,
         log=log,

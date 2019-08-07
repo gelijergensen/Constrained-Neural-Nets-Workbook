@@ -1,5 +1,7 @@
 """Plotting of the model predictions in the input and output space"""
 
+import matplotlib.pyplot as plt
+
 from .config import DEFAULT_DIRECTORY
 from .readability_utils import _correct_and_clean_labels
 

@@ -1,5 +1,8 @@
 """Plotting of the time it takes for various computation steps"""
 
+import matplotlib.pyplot as plt
+import numpy as np
+
 from .config import DEFAULT_DIRECTORY
 from .readability_utils import _correct_and_clean_labels
 
