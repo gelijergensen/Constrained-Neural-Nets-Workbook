@@ -16,13 +16,12 @@ def retrieve_object(monitor, object_string, **kwargs):
     :returns: the data for the given monitor in a plottable format (a numpy
         array of single values)
     """
-
     if object_string in ["mean_loss", "constrained_loss"]:
         return retrieve_plain(monitor, object_string)
     elif object_string == "constraints":
         return retrieve_singlevalue_constraints(monitor, **kwargs)
     elif object_string == "constraints_diagnostics":
-        return retrieve_constraints_diagnostics
+        return retrieve_constraints_diagnostics(monitor, **kwargs)
     else:
         raise ValueError(f"{object_string} not recognized for data retrieval")
 
@@ -79,13 +78,15 @@ def retrieve_constraints_diagnostics(monitor, index=0):
     :returns: the data for the given monitor in a plottable format (a numpy
         array of single values)
     """
-    data = monitor.constraints_diagnostics[index]
+    data = [
+        [batch[index] for batch in epoch]
+        for epoch in monitor.constraints_diagnostics
+    ]
     batch_sizes = monitor.batch_size
 
     values = np.array(
         [[torch.mean(batch).item() for batch in epoch] for epoch in data]
     )
-
     return batch_weighted_average(values, batch_sizes)
 
 

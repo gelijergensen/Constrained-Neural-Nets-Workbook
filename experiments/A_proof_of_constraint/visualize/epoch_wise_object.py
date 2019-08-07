@@ -7,7 +7,7 @@ from .readability_utils import _clean_label, _correct_and_clean_labels
 from .retrieval_utils import retrieve_object
 
 
-__all__ = ["plot_loss", "plot_constraints"]
+__all__ = ["plot_loss", "plot_constraints", "plot_constraints_diagnostics"]
 
 
 def _plot_object(
@@ -135,8 +135,9 @@ def plot_constraints(
     monitors,
     labels,
     savefile,
-    title="Constraint magnitude",
-    ylabel="Average constraint magnitude",
+    absolute_value=False,
+    title="Constraint",
+    ylabel="Average constraint value",
     log=False,
     directory=DEFAULT_DIRECTORY,
 ):
@@ -145,6 +146,7 @@ def plot_constraints(
     :param monitors: a list of monitors, e.g. [training, evaluation]
     :param labels: a list of strings for the label of each monitor
     :param savefile: name of the file to save. If none, then will not save
+    :param absolute_value: whether to plot the absolute value of the constraints
     :param title: title of the figure
     :param ylabel: label for the y-axis
     :param log: whether to plot a log-plot
@@ -157,6 +159,7 @@ def plot_constraints(
         labels,
         savefile,
         object_string,
+        retrieval_kwargs={"absolute_value": absolute_value},
         title=title,
         ylabel=ylabel,
         log=log,
