@@ -192,8 +192,8 @@ def create_engine(
             engine, Sub_Batch_Events.LOSS_COMPUTED, section_start
         )
 
-        engine.state.constraints = constraint_fn(
-            engine.state.out, *engine.state.xb
+        engine.state.constraints, engine.state.constraints_diagnostics = constraint_fn(
+            engine.state.out, *engine.state.xb, return_diagnostics=True
         )
         section_start = end_section(
             engine, Sub_Batch_Events.CONSTRAINTS_COMPUTED, section_start
