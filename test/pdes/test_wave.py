@@ -17,7 +17,7 @@ def test_helmholtz_equation():
     value = pde(out, xb, torch.tensor([amplitude, frequency, phase]))
 
     assert torch.allclose(
-        torch.mean(torch.abs(value)), torch.tensor(0.0), atol=1e-6
+        torch.mean(torch.abs(value)), torch.tensor(0.0), atol=1e-5
     )
 
     # batched
@@ -33,5 +33,5 @@ def test_helmholtz_equation():
     value = pde(out, xb, torch.stack([amplitude, frequency, phase], dim=1))
 
     assert torch.allclose(
-        torch.mean(torch.abs(value)), torch.tensor(0.0), atol=1e-6
+        torch.mean(torch.abs(value)), torch.tensor(0.0), atol=1e-5
     )
