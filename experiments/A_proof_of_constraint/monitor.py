@@ -15,6 +15,8 @@ class ProofOfConstraintMonitor(Monitor):
         self.add("constrained_loss", average=False)
         self.add("batch_size", average=False)
         self.add("constraints", average=False)
+        self.add("reduced_constraints", average=False)
+        self.add("constraints_diagnostics", average=False)
         self.add("timing", average=False)
 
     def new_epoch(self, engine):
@@ -34,4 +36,9 @@ class ProofOfConstraintMonitor(Monitor):
         self.set("constrained_loss", engine.state.constrained_loss.item())
         self.set("batch_size", len(engine.state.xb))
         self.set("constraints", engine.state.constraints.to("cpu"))
+        self.set("reduced_constraints", engine.state.reduced_constraints.item())
+        self.set(
+            "constraints_diagnostics",
+            tuple(x.to("cpu") for x in engine.state.constraints_diagnostics),
+        )
         self.set("timing", engine.state.times.copy())

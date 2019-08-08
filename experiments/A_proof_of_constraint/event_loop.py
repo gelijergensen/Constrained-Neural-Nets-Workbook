@@ -73,16 +73,14 @@ def create_engine(
         "approximate" - approximate the optimal constraints using Broyden's 
             trick. If no reduction is specified, will throw error
         "unconstrained" - don't constrain. Used as a control method
-        "soft-constrained" - use soft constraints. If no reduction is specified,
-            will throw error
+        "soft-constrained" - use soft constraints
         "no-loss" - intended entirely for debugging. Ignores the loss function
             entirely and just tries to satisfy the constraints
         "non-projecting" - the sum of "no-loss" and "unconstrained". This 
             destroys the exponential convergence guarantee, but should be useful
             for debugging
     :param reduction: reduction to apply to constraints before computing 
-        constrained loss if method == "reduction", "approximate", or 
-        "soft-constrained"
+        constrained loss if method == "reduction" or "approximate"
     :param ground_approximation: string for when to recompute the exact 
         multipliers to ground the approximation. Should consist of a number 
         followed by either "batches" or "epochs". e.g. "1 epochs", "3 batches"
@@ -192,8 +190,8 @@ def create_engine(
             engine, Sub_Batch_Events.LOSS_COMPUTED, section_start
         )
 
-        engine.state.constraints = constraint_fn(
-            engine.state.out, *engine.state.xb
+        engine.state.constraints, engine.state.constraints_diagnostics = constraint_fn(
+            engine.state.out, *engine.state.xb, return_diagnostics=True
         )
         section_start = end_section(
             engine, Sub_Batch_Events.CONSTRAINTS_COMPUTED, section_start
@@ -208,6 +206,7 @@ def create_engine(
                 return_timing=True,
                 # defaults are for this method
             )
+            engine.state.reduced_constraints = torch.tensor([0.0])
             engine.state.constrained_loss = torch.mean(constrained_loss)
             engine.state.times.update(multiplier_computation_timing)
         elif method == "batchwise":
@@ -219,6 +218,7 @@ def create_engine(
                 return_timing=True,
                 batchwise=True,
             )
+            engine.state.reduced_constraints = torch.tensor([0.0])
             engine.state.times.update(multiplier_computation_timing)
         elif method == "reduction":
             if reduction is None:
@@ -232,6 +232,9 @@ def create_engine(
                 return_multipliers=True,
                 return_timing=True,
                 reduction=reduction,
+            )
+            engine.state.reduced_constraints = reduction(
+                engine.state.constraints
             )
             engine.state.times.update(multiplier_computation_timing)
         elif method == "approximate":
@@ -255,29 +258,26 @@ def create_engine(
                 return_timing=True,
                 reduction=reduction,
             )
+            engine.state.reduced_constraints = reduction(
+                engine.state.constraints
+            )
             engine.state.times.update(multiplier_computation_timing)
         elif method == "soft-constrained":
-            if reduction is None:
-                raise ValueError(
-                    "Reduction must be specified if method=='soft-constrained'"
-                )
-            # Technically the multipliers are defined this way, so we set this for consistency
-            reduced_constraints = reduction(engine.state.constraints)
-            multiplier = engine.state.iteration / (
-                100000 + engine.state.iteration
-            )
-            engine.state.multipliers = reduced_constraints.new_full(
-                engine.state.constraints.size(), multiplier
+            engine.state.multipliers = engine.state.constraints.new_full(
+                engine.state.constraints.size(),
+                engine.state.constraints.view(-1).size()[0],
             )
             engine.state.constrained_loss = torch.mean(
                 engine.state.loss
-            ) + multiplier * torch.sum(reduced_constraints)
+            ) + torch.mean(engine.state.constraints)
+            engine.state.reduced_constraints = torch.tensor([0.0])
         elif method == "unconstrained":
             # Technically the multipliers are zero, so we set this for consistency
             engine.state.multipliers = engine.state.constraints.new_zeros(
                 engine.state.constraints.size()
             )
             engine.state.constrained_loss = torch.mean(engine.state.loss)
+            engine.state.reduced_constraints = torch.tensor([0.0])
         elif method == "no-loss":
             constrained_loss, engine.state.multipliers, multiplier_computation_timing = constrain_loss(
                 engine.state.loss.new_zeros(
@@ -290,6 +290,7 @@ def create_engine(
             )
             engine.state.constrained_loss = torch.mean(constrained_loss)
             engine.state.times.update(multiplier_computation_timing)
+            engine.state.reduced_constraints = torch.tensor([0.0])
         elif method == "non-projecting":
             correction_term, engine.state.multipliers, multiplier_computation_timing = constrain_loss(
                 engine.state.loss.new_zeros(
@@ -304,6 +305,7 @@ def create_engine(
                 engine.state.loss + correction_term
             )
             engine.state.times.update(multiplier_computation_timing)
+            engine.state.reduced_constraints = torch.tensor([0.0])
         else:
             raise ValueError(f"Method {method} not known. Please respecify")
 
