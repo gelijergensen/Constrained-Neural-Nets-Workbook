@@ -136,6 +136,7 @@ def plot_constraints(
     labels,
     savefile,
     absolute_value=False,
+    reduced=False,
     title="Constraint",
     ylabel="Average constraint value",
     log=False,
@@ -153,7 +154,10 @@ def plot_constraints(
     :param directory: directory to save the file in. Defaults to the results dir
     :returns: the figure
     """
-    object_string = "constraints"
+    if reduced:
+        object_string = "reduced_constraints"
+    else:
+        object_string = "constraints"
     return _plot_object(
         monitors,
         labels,

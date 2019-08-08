@@ -16,7 +16,11 @@ def retrieve_object(monitor, object_string, **kwargs):
     :returns: the data for the given monitor in a plottable format (a numpy
         array of single values)
     """
-    if object_string in ["mean_loss", "constrained_loss"]:
+    if object_string in [
+        "mean_loss",
+        "constrained_loss",
+        "reduced_constraints",
+    ]:
         return retrieve_plain(monitor, object_string)
     elif object_string == "constraints":
         return retrieve_singlevalue_constraints(monitor, **kwargs)
@@ -57,7 +61,7 @@ def retrieve_singlevalue_constraints(monitor, absolute_value=False):
     if absolute_value:
         batchwise_averages = np.array(
             [
-                [torch.mean(torch.abs(batch)).item() for batch in epoch]
+                [torch.abs(torch.mean(batch)).item() for batch in epoch]
                 for epoch in data
             ]
         )
