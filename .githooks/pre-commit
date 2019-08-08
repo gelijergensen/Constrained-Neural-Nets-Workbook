@@ -1,4 +1,3 @@
 #!/bin/bash
 
 clean_ipynb experiments/*.ipynb
-git add experiments/*.ipynb

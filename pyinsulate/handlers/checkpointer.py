@@ -25,7 +25,7 @@ class Checkpointer(object):
         matched = [
             fname
             for fname in os.listdir(self._dirname)
-            if fname.startswith(self._filename_base)
+            if fname.startswith(f"{self._filename_base}_") # trailing _ necessary
         ]
         if len(matched) > 0:
             raise ValueError(
