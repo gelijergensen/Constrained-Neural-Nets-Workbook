@@ -5,6 +5,10 @@ import torch
 import torch.nn as nn
 
 
+def swish(x):
+    return x * nn.functional.sigmoid(x)
+
+
 class Dense(nn.Module):
     """A model which simply concatenates the parameterization to the inputs"""
 
