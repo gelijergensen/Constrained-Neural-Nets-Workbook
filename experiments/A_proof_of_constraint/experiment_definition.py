@@ -1,8 +1,19 @@
 """Defines all of the configurations which we want to evaluate"""
 
 import itertools
+import numpy as np
 import sys
 from torch import nn
+
+from experiments.A_proof_of_constraint.model import (
+    Dense,
+    ParameterizedDense,
+    swish,
+)
+from experiments.A_proof_of_constraint.reductions import (
+    Huber_Reduction,
+    Lp_Reduction,
+)
 
 
 def get_configuration(index):
@@ -30,17 +41,40 @@ def dictionary_product(**kwargs):
 CONFIGURATIONS = list(
     dictionary_product(
         **{
-            "training_sampling": ["uniform", "start"],
-            "num_points": [1000],
-            "num_training": [500],
-            "batch_size": [100],
-            "model_size": [[20, 20, 20]],
+            "training_parameterizations": [
+                {
+                    "amplitudes": np.linspace(0.2, 5.0, num=10),
+                    "frequencies": np.linspace(0.2, 5.0, num=10),
+                    "phases": np.linspace(-0.5, 0.5, num=10),
+                    "num_points": 50,
+                    "sampling": "random",
+                }
+            ],
+            "testing_parameterizations": [
+                {
+                    "amplitudes": [1.0],
+                    "frequencies": [1.0],
+                    "phases": [0.0],
+                    "num_points": 500,
+                    "sampling": "uniform",
+                }
+            ],
+            "batch_size": [1000],
+            "architecture": [ParameterizedDense],
+            "model_size": [[50, 50, 50, 50, 50]],
             "learning_rate": [1e-3],
-            "method": ["constrained", "batchwise", "unconstrained"],
-            "model_act": [nn.Tanh(), nn.SELU()],
-            "num_epochs": [200],
+            "ground_approximation": [None],
+            "reduction": [Huber_Reduction(6)],
+            "model_act": [nn.Tanh(), swish],
+            "num_epochs": [500],
             "save_directory": ["results/checkpoints"],
             "save_interval": [10],
+            "method": [
+                "unconstrained",
+                "soft-constrained",
+                "reduction",
+                # "constrained",
+            ],
         }
     )
 )
