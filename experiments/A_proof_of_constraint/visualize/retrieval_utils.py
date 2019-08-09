@@ -127,16 +127,14 @@ def retrieve_parameters(monitor, gradients=False):
     :returns: the values of the parameters (or gradients) for each batch and 
         epoch
     """
-    data = monitor.model_parameters
-
     if gradients:
-        if not data[0][0].requires_grad:
-            raise AttributeError("Parameters do not have gradients attached")
-        return np.array(
-            [[batch.grad.numpy() for batch in epoch] for epoch in data]
-        )
+        data = monitor.model_parameters_grad
+        if data[0][0] is None:
+            raise AttributeError("Parameters do not have gradients")
     else:
-        return np.array([[batch.numpy() for batch in epoch] for epoch in data])
+        data = monitor.model_parameters
+
+    return np.array([[batch.numpy() for batch in epoch] for epoch in data])
 
 
 def batch_weighted_average(data, batch_sizes):

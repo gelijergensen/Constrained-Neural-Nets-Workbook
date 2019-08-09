@@ -18,6 +18,7 @@ class ProofOfConstraintMonitor(Monitor):
         self.add("reduced_constraints", average=False)
         self.add("constraints_diagnostics", average=False)
         self.add("model_parameters", average=False)
+        self.add("model_parameters_grad", average=False)
         self.add("timing", average=False)
 
     def summarize(self):
@@ -40,4 +41,9 @@ class ProofOfConstraintMonitor(Monitor):
         self.set(
             "model_parameters", engine.state.model_parameters.to("cpu").detach()
         )
+        grads = engine.state.model_parameters_grad
+        if grads is not None:
+            self.set("model_parameters_grad", grads.to("cpu").detach())
+        else:
+            self.set("model_parameters_grad", grads)
         self.set("timing", engine.state.times.copy())

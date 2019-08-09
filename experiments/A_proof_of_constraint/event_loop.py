@@ -263,7 +263,9 @@ def create_engine(
             )
             engine.state.times.update(multiplier_computation_timing)
         elif method == "soft-constrained":
-            engine.state.multipliers = engine.state.constraints / engine.state.constraints.numel()
+            engine.state.multipliers = (
+                engine.state.constraints / engine.state.constraints.numel()
+            )
             engine.state.constrained_loss = torch.mean(
                 engine.state.loss
             ) + torch.mean(engine.state.constraints * engine.state.constraints)
@@ -310,26 +312,21 @@ def create_engine(
             engine, Sub_Batch_Events.REWEIGHTED_LOSS_COMPUTED, section_start
         )
 
+        # log the values of the model parameters (without gradients)
+        engine.state.model_parameters = (
+            torch.cat([param.view(-1) for param in model.parameters()], dim=-1)
+            .clone()
+            .detach()
+        )
         if optimizer is not None:
             engine.state.constrained_loss.backward()
-            # log the values of the model parameter (with gradients)
-            engine.state.model_parameters = (
-                torch.cat(
-                    [param.view(-1) for param in model.parameters()], dim=-1
-                )
-                .clone()
-                .detach()
+            # attach the gradients
+            engine.state.model_parameters_grad = torch.cat(
+                [param.grad.view(-1) for param in model.parameters()], dim=-1
             )
             optimizer.step()
         else:
-            # log the values of the model parameters (without gradients)
-            engine.state.model_parameters = (
-                torch.cat(
-                    [param.view(-1) for param in model.parameters()], dim=-1
-                )
-                .clone()
-                .detach()
-            )
+            engine.state.model_parameters_grad = None
         engine.state.model_state_dict = model.state_dict()
         if optimizer is not None:
             engine.state.optimizer_state_dict = optimizer.state_dict()
