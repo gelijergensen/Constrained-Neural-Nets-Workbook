@@ -14,6 +14,11 @@ class Monitor(object):
         self._all_keys = list()
         self._should_key_average = dict()
         self._counts = dict()
+        self._last_iteration = 0
+        self._last_epoch = 0
+
+        self.add("epoch", average=True)
+        self.add("iteration", average=False)
 
     def __call__(self, engine):
         raise NotImplementedError
@@ -23,7 +28,15 @@ class Monitor(object):
 
     def attach(self, engine):
         engine.add_event_handler(Events.EPOCH_STARTED, self.new_epoch)
+        engine.add_event_handler(Events.ITERATION_STARTED, self.new_iteration)
         engine.add_event_handler(Events.ITERATION_COMPLETED, self.__call__)
+
+        def new_epoch(self, engine):
+            super().new_epoch(engine)
+            last_epoch = (
+                self.get("epoch", -2) if len(self.get("epoch")) > 1 else 0
+            )
+            self.set("epoch", last_epoch + 1)
 
     def new_epoch(self, engine):
         for key in self._all_keys:
@@ -32,6 +45,13 @@ class Monitor(object):
                 getattr(self, key).append(None)
             else:
                 getattr(self, key).append(list())
+        # We have to do this this way because the evaluation engines always have epoch=1
+        self.set("epoch", self._last_epoch + 1)
+        self._last_epoch += 1
+
+    def new_iteration(self, engine):
+        self.set("iteration", self._last_iteration + 1)
+        self._last_iteration += 1
 
     def add(self, key, average=False):
         if hasattr(self, key):

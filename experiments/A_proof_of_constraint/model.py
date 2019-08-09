@@ -5,8 +5,15 @@ import torch
 import torch.nn as nn
 
 
-def swish(x):
-    return x * nn.functional.sigmoid(x)
+class Swish(object):
+    def __init__(self):
+        pass
+
+    def __call__(self, x):
+        return x * torch.sigmoid(x)
+
+    def __str__(self):
+        return "Swish()"
 
 
 class Dense(nn.Module):

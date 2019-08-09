@@ -263,13 +263,12 @@ def create_engine(
             )
             engine.state.times.update(multiplier_computation_timing)
         elif method == "soft-constrained":
-            engine.state.multipliers = engine.state.constraints.new_full(
-                engine.state.constraints.size(),
-                engine.state.constraints.view(-1).size()[0],
+            engine.state.multipliers = (
+                engine.state.constraints / engine.state.constraints.numel()
             )
             engine.state.constrained_loss = torch.mean(
                 engine.state.loss
-            ) + torch.mean(engine.state.constraints)
+            ) + torch.mean(engine.state.constraints * engine.state.constraints)
             engine.state.reduced_constraints = torch.tensor([0.0])
         elif method == "unconstrained":
             # Technically the multipliers are zero, so we set this for consistency
@@ -313,9 +312,21 @@ def create_engine(
             engine, Sub_Batch_Events.REWEIGHTED_LOSS_COMPUTED, section_start
         )
 
+        # log the values of the model parameters (without gradients)
+        engine.state.model_parameters = (
+            torch.cat([param.view(-1) for param in model.parameters()], dim=-1)
+            .clone()
+            .detach()
+        )
         if optimizer is not None:
             engine.state.constrained_loss.backward()
+            # attach the gradients
+            engine.state.model_parameters_grad = torch.cat(
+                [param.grad.view(-1) for param in model.parameters()], dim=-1
+            )
             optimizer.step()
+        else:
+            engine.state.model_parameters_grad = None
         engine.state.model_state_dict = model.state_dict()
         if optimizer is not None:
             engine.state.optimizer_state_dict = optimizer.state_dict()

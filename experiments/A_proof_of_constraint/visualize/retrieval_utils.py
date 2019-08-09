@@ -5,29 +5,40 @@ import numpy as np
 import torch
 
 
-def retrieve_object(monitor, object_string, **kwargs):
+def retrieve_object(monitor, object_string, average_batches=True, **kwargs):
     """Retrives the requested data from the given monitor
 
     :param monitor: either a training or evaluation monitor
     :param object_string: string to identify the object to retrieve. Should be
-        one of 
+        one of "mean_loss", "constrained_loss", "reduced_constraints", 
+        "constraints", "constraints_diagnostics", "model_parameters"
+    :param average_batches: whether to return the average value of the object
+        over all batches within an epoch. Defaults to True
     :param kwargs: all other options passed to downstream methods
 
-    :returns: the data for the given monitor in a plottable format (a numpy
-        array of single values)
+    :returns: a numpy array of the data. If average_batches, then has shape
+        (num_epochs,). Otherwise has shape (num_epochs, num_batchs_per_epoch)
     """
     if object_string in [
         "mean_loss",
         "constrained_loss",
         "reduced_constraints",
     ]:
-        return retrieve_plain(monitor, object_string)
+        data = retrieve_plain(monitor, object_string)
     elif object_string == "constraints":
-        return retrieve_singlevalue_constraints(monitor, **kwargs)
+        data = retrieve_constraint(monitor, **kwargs)
     elif object_string == "constraints_diagnostics":
-        return retrieve_constraints_diagnostics(monitor, **kwargs)
+        data = retrieve_constraints_diagnostics(monitor, **kwargs)
+    elif object_string == "model_parameters":
+        data = retrieve_parameters(monitor, **kwargs)
     else:
         raise ValueError(f"{object_string} not recognized for data retrieval")
+
+    if average_batches:
+        batch_sizes = monitor.batch_size
+        return batch_weighted_average(data, batch_sizes)
+    else:
+        return data
 
 
 def retrieve_plain(monitor, object_string):
@@ -36,41 +47,58 @@ def retrieve_plain(monitor, object_string):
 
     :param monitor: either a training or evaluation monitor
     :param object_string: string to identify the object to retrieve
-    :returns: the data for the given monitor in a plottable format (a numpy
-        array of single values)
+    :returns: the data for the given monitor directly
     """
-    data = monitor.get(object_string)
-    batch_sizes = monitor.batch_size
-
-    return batch_weighted_average(data, batch_sizes)
+    return monitor.get(object_string)
 
 
-def retrieve_singlevalue_constraints(monitor, absolute_value=False):
-    """Retrieves the average value (or magnitude thereof) of the constraints.
-    Warning: this method assumes that the constraint is a tensor of shape 
-    (batch_size, ) for each batch
+def retrieve_constraint(
+    monitor, index=0, absolute_value=False, distribution=False
+):
+    """Retrieves either the complete distribution or average value (or 
+    magnitude thereof) of the index-th constraint. By default returns the 
+    average value
     
     :param monitor: either a training or evaluation monitor
-    :param absolute_value: whether to take the absolute value of the constraints
-    :returns: the data for the given monitor in a plottable format (a numpy
-        array of single values)
+    :param absolute_value: whether to take the absolute value of the 
+        constraints
+    :param distribution: whether to return the entire constraints distribution
+    :returns: the values of the constraints for each batch and epoch
     """
     data = monitor.constraints
-    batch_sizes = monitor.batch_size
 
-    if absolute_value:
-        batchwise_averages = np.array(
-            [
-                [torch.abs(torch.mean(batch)).item() for batch in epoch]
-                for epoch in data
-            ]
-        )
+    if distribution:
+        if absolute_value:
+            return np.abs(
+                np.array(
+                    [
+                        [batch[:, index].numpy() for batch in epoch]
+                        for epoch in data
+                    ]
+                )
+            )
+        else:
+            return np.array(
+                [[batch[:, index].numpy() for batch in epoch] for epoch in data]
+            )
     else:
-        batchwise_averages = np.array(
-            [[torch.mean(batch).item() for batch in epoch] for epoch in data]
-        )
-
-    return batch_weighted_average(batchwise_averages, batch_sizes)
+        if absolute_value:
+            return np.array(
+                [
+                    [
+                        torch.mean(torch.abs(batch[:, index])).numpy()
+                        for batch in epoch
+                    ]
+                    for epoch in data
+                ]
+            )
+        else:
+            return np.array(
+                [
+                    [torch.mean(batch[:, index]).numpy() for batch in epoch]
+                    for epoch in data
+                ]
+            )
 
 
 def retrieve_constraints_diagnostics(monitor, index=0):
@@ -79,19 +107,34 @@ def retrieve_constraints_diagnostics(monitor, index=0):
 
     :param monitor: either a training or evaluation monitor
     :param index: the index in the constraints diagnostics to retrieve
-    :returns: the data for the given monitor in a plottable format (a numpy
-        array of single values)
+    :returns: the values of the constraints diagnostics for each batch and epoch
     """
     data = [
         [batch[index] for batch in epoch]
         for epoch in monitor.constraints_diagnostics
     ]
-    batch_sizes = monitor.batch_size
 
-    values = np.array(
+    return np.array(
         [[torch.mean(batch).item() for batch in epoch] for epoch in data]
     )
-    return batch_weighted_average(values, batch_sizes)
+
+
+def retrieve_parameters(monitor, gradients=False):
+    """Retrieves the parameters of the model or their gradients
+
+    :param monitor: either a training or evaluation monitor
+    :param gradients: whether to retrieve the gradients instead of the values
+    :returns: the values of the parameters (or gradients) for each batch and 
+        epoch
+    """
+    if gradients:
+        data = monitor.model_parameters_grad
+        if data[0][0] is None:
+            raise AttributeError("Parameters do not have gradients")
+    else:
+        data = monitor.model_parameters
+
+    return np.array([[batch.numpy() for batch in epoch] for epoch in data])
 
 
 def batch_weighted_average(data, batch_sizes):
@@ -100,7 +143,7 @@ def batch_weighted_average(data, batch_sizes):
     epochs and the inner list corresponding to iterations/batches"""
     return np.array(
         [
-            np.average(datum, weights=batch_size)
+            np.average(datum, weights=batch_size, axis=0)  # batch dimension
             for datum, batch_size in zip(data, batch_sizes)
         ]
     )

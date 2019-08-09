@@ -29,7 +29,7 @@ def plot_time(
     :param title: title of the figure
     :param xlabel: label for the x-axis
     :param time_keys: time keys to plot. Defaults to all available
-    :param log: whether to plot on a log scale
+    :param log: whether to plot a log-plot. Can also be set to "symlog"
     :param directory: directory to save the file in. Defaults to the results dir
     :returns: the figure
     """
@@ -114,7 +114,10 @@ def plot_time(
 
     # possibly make log plot
     if log:
-        plt.xscale("log")
+        if log == "symlog":
+            plt.xscale("symlog")
+        else:
+            plt.xscale("log")
 
     plt.xlabel(xlabel)
     plt.title(title)
@@ -204,7 +207,8 @@ def plot_time_experiment(
     plt.title(title)
     plt.ylabel(ylabel)
     plt.xlabel(xlabel)
-    plt.legend()
+    l = plt.legend()
+    l.set_zorder(20)
 
     plt.tight_layout()
 
