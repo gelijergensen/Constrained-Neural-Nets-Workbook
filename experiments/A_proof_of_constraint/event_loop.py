@@ -317,13 +317,21 @@ def create_engine(
             engine.state.constrained_loss.backward()
             # log the values of the model parameter (with gradients)
             engine.state.model_parameters = (
-                torch.cat(list(model.parameters()), dim=-1).clone().detach()
+                torch.cat(
+                    [param.view(-1) for param in model.parameters()], dim=-1
+                )
+                .clone()
+                .detach()
             )
             optimizer.step()
         else:
             # log the values of the model parameters (without gradients)
             engine.state.model_parameters = (
-                torch.cat(list(model.parameters()), dim=-1).clone().detach()
+                torch.cat(
+                    [param.view(-1) for param in model.parameters()], dim=-1
+                )
+                .clone()
+                .detach()
             )
         engine.state.model_state_dict = model.state_dict()
         if optimizer is not None:
