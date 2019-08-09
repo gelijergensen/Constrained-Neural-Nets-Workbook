@@ -11,7 +11,7 @@ def retrieve_object(monitor, object_string, average_batches=True, **kwargs):
     :param monitor: either a training or evaluation monitor
     :param object_string: string to identify the object to retrieve. Should be
         one of "mean_loss", "constrained_loss", "reduced_constraints", 
-        "constraints", "constraints_diagnostics"
+        "constraints", "constraints_diagnostics", "model_parameters"
     :param average_batches: whether to return the average value of the object
         over all batches within an epoch. Defaults to True
     :param kwargs: all other options passed to downstream methods
@@ -130,9 +130,13 @@ def retrieve_parameters(monitor, gradients=False):
     data = monitor.model_parameters
 
     if gradients:
-        return data.grad.numpy()
+        if not data[0][0].requires_grad:
+            raise AttributeError("Parameters do not have gradients attached")
+        return np.array(
+            [[batch.grad.numpy() for batch in epoch] for epoch in data]
+        )
     else:
-        return data.numpy()
+        return np.array([[batch.numpy() for batch in epoch] for epoch in data])
 
 
 def batch_weighted_average(data, batch_sizes):

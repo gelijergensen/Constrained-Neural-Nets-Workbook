@@ -8,7 +8,7 @@ from .readability_utils import _clean_label, _correct_and_clean_labels
 from .retrieval_utils import retrieve_object
 
 
-__all__ = ["plot_constraints_distribution"]
+__all__ = ["plot_constraints_distribution", "plot_parameters_distribution"]
 
 
 def _plot_object_distribution(
@@ -17,6 +17,7 @@ def _plot_object_distribution(
     savefile,
     object_string,
     retrieval_kwargs=dict(),
+    plot_iterations=False,
     title=None,
     ylabel=None,
     log=False,
@@ -33,6 +34,9 @@ def _plot_object_distribution(
         retrieval_utils.retrieve_object for more details
     :param retrieval_kwargs: dictionary of any necessary kwargs for the 
         retrieval process. See retrieval_utils.retrieve_object for more details
+    :param plot_iterations: whether to plot by iteration, rather than by epoch.
+        Will assume the data is of shape (epoch, batch, ...) and flatten to
+        (total_iterations, ...)
     :param title: title of the figure. Defaults to a cleaned version of the
         object string
     :param ylabel: label for the y-axis. Defaults to a cleaned version of 
@@ -49,18 +53,28 @@ def _plot_object_distribution(
         ylabel = f"Average {_clean_label(object_string)}"
 
     fig = plt.figure()
-    for i, (monitor_pair, label) in enumerate(zip(monitors, clean_labels)):
-        training_monitor, evaluation_monitor = monitor_pair
+    for i, (monitor_set, label) in enumerate(zip(monitors, clean_labels)):
 
-        color = None
-        if training_monitor is not None:
-            training_data = retrieve_object(
-                training_monitor, object_string, **retrieval_kwargs
-            )
-            xvalues = np.array(training_monitor.epoch)
+        if len(monitor_set) == 1:
+            suffixes = [""]
+        elif len(monitor_set) == 2:
+            suffixes = [" (Training)", " (Evaluation)"]
+        else:
+            suffixes = ["SET SUFFIXES!" for monitor in monitor_set]
+
+        for monitor, suffix in zip(monitor_set, suffixes):
+            if monitor is None:
+                continue
+            data = retrieve_object(monitor, object_string, **retrieval_kwargs)
+            if plot_iterations:
+                # flatten the batch axis into the epoch axis
+                data = data.reshape(-1, data.shape[2:])
+                xvalues = np.array(monitor.iteration).ravel()
+            else:
+                xvalues = np.array(monitor.epoch)
             # Retrieve all 100 percentiles
             percentiles = np.percentile(
-                training_data,
+                data,
                 np.linspace(0, 100, num=101),  # Must be odd
                 axis=1,  # 0th axis is epoch
             )
@@ -69,42 +83,7 @@ def _plot_object_distribution(
                 xvalues,
                 percentiles[midpoint],
                 "-",
-                label=f"{label} (Training)",
-                zorder=10,
-            )
-            color = line2d[0].get_color()
-
-            for i in range(midpoint):
-                plt.fill_between(
-                    xvalues,
-                    percentiles[i],
-                    percentiles[-i - 1],
-                    color=color,
-                    alpha=(
-                        5.0 / (len(percentiles) - 1)
-                    ),  # This requires >5 percentiles!
-                    zorder=0,
-                )
-            plt.plot(xvalues, percentiles[0], ":", color=color, zorder=10)
-            plt.plot(xvalues, percentiles[-1], ":", color=color, zorder=10)
-
-        if evaluation_monitor is not None:
-            evaluation_data = retrieve_object(
-                evaluation_monitor, object_string, **retrieval_kwargs
-            )
-            xvalues = np.array(evaluation_monitor.epoch)
-            # Retrieve all 100 percentiles
-            percentiles = np.percentile(
-                evaluation_data,
-                np.linspace(0, 100, num=101),  # Must be odd
-                axis=1,  # 0th axis is epoch
-            )
-            midpoint = int((len(percentiles) - 1) / 2)
-            line2d = plt.plot(
-                xvalues,
-                percentiles[midpoint],
-                "-",
-                label=f"{label} (Evaluation)",
+                label=f"{label}{suffix}",
                 zorder=10,
             )
             color = line2d[0].get_color()
@@ -124,7 +103,7 @@ def _plot_object_distribution(
             plt.plot(xvalues, percentiles[-1], ":", color=color, zorder=10)
     plt.title(title)
     plt.ylabel(ylabel)
-    plt.xlabel("Epoch")
+    plt.xlabel("Iteration" if plot_iterations else "Epoch")
     l = plt.legend()
     l.set_zorder(20)
 
@@ -176,6 +155,42 @@ def plot_constraints_distribution(
             "distribution": True,
             "absolute_value": absolute_value,
         },
+        title=title,
+        ylabel=ylabel,
+        log=log,
+        directory=directory,
+    )
+
+
+def plot_parameters_distribution(
+    monitors,
+    labels,
+    savefile,
+    gradients=False,
+    title="Parameters",
+    ylabel="Parameter values",
+    log=False,
+    directory=DEFAULT_DIRECTORY,
+):
+    """Plots the distribution of the constraints
+
+    :param monitors: a list of monitors, e.g. [training, evaluation]
+    :param labels: a list of strings for the label of each monitor
+    :param savefile: name of the file to save. If none, then will not save
+    :param gradients: whether to plot the gradients of the parameters
+    :param title: title of the figure
+    :param ylabel: label for the y-axis
+    :param log: whether to plot a log-plot. Can also be set to "symlog"
+    :param directory: directory to save the file in. Defaults to the results dir
+    :returns: the figure
+    """
+    object_string = "model_parameters"
+    return _plot_object_distribution(
+        monitors,
+        labels,
+        savefile,
+        object_string,
+        retrieval_kwargs={"gradients": gradients},
         title=title,
         ylabel=ylabel,
         log=log,

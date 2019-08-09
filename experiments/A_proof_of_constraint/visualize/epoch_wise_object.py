@@ -39,6 +39,9 @@ def _plot_object(
     :param directory: directory to save the file in. Defaults to the results dir
     :returns: the figure
     """
+
+    possible_line_styles = ["-", "--", "-.", ":", "."]
+
     clean_labels = _correct_and_clean_labels(labels)
 
     if title is None:
@@ -47,32 +50,35 @@ def _plot_object(
         ylabel = f"Average {_clean_label(object_string)}"
 
     fig = plt.figure()
-    for i, (monitor_pair, label) in enumerate(zip(monitors, clean_labels)):
-        training_monitor, evaluation_monitor = monitor_pair
+    for i, (monitor_set, label) in enumerate(zip(monitors, clean_labels)):
+        if len(monitor_set) == 1:
+            suffixes = [""]
+        elif len(monitor_set) == 2:
+            suffixes = [" (Training)", " (Evaluation)"]
+        else:
+            suffixes = ["SET SUFFIXES!" for monitor in monitor_set]
 
         color = None
-        if training_monitor is not None:
-            training_data = retrieve_object(
-                training_monitor, object_string, **retrieval_kwargs
-            )
-            line2d = plt.plot(
-                training_monitor.epoch,
-                training_data,
-                "-",
-                label=f"{label} (Training)",
-            )
-            color = line2d[0].get_color()
-        if evaluation_monitor is not None:
-            evaluation_data = retrieve_object(
-                evaluation_monitor, object_string, **retrieval_kwargs
-            )
-            plt.plot(
-                evaluation_monitor.epoch,
-                evaluation_data,
-                "--",
-                label=f"{label} (Evaluation)",
-                color=color,
-            )
+        for monitor, suffix, line_style in zip(
+            monitor_set, suffixes, possible_line_styles
+        ):
+            if monitor is None:
+                continue
+            data = retrieve_object(monitor, object_string, **retrieval_kwargs)
+
+            if color is None:
+                line2d = plt.plot(
+                    monitor.epoch, data, "-", label=f"{label}{suffix}"
+                )
+                color = line2d[0].get_color()
+            else:
+                plt.plot(
+                    monitor.epoch,
+                    data,
+                    line_style,
+                    label=f"{label}{suffix}",
+                    color=color,
+                )
     plt.title(title)
     plt.ylabel(ylabel)
     plt.xlabel("Epoch")
