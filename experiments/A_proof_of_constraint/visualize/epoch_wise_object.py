@@ -1,4 +1,4 @@
-"""Tools for visualizing the results of the experiment"""
+"""Tools for plotting single values for each epoch"""
 
 import matplotlib.pyplot as plt
 
@@ -35,7 +35,7 @@ def _plot_object(
         object string
     :param ylabel: label for the y-axis. Defaults to a cleaned version of 
         f"Average {object_string}"
-    :param log: whether to plot a log-plot
+    :param log: whether to plot a log-plot. Can also be set to "symlog"
     :param directory: directory to save the file in. Defaults to the results dir
     :returns: the figure
     """
@@ -80,7 +80,10 @@ def _plot_object(
 
     # possibly make log plot
     if log:
-        plt.yscale("log")
+        if log == "symlog":
+            plt.yscale("symlog")
+        else:
+            plt.yscale("log")
 
     plt.tight_layout()
 
@@ -111,7 +114,7 @@ def plot_loss(
         Defaults to unconstrained
     :param title: title of the figure
     :param ylabel: label for the y-axis
-    :param log: whether to plot a log-plot
+    :param log: whether to plot a log-plot. Can also be set to "symlog"
     :param directory: directory to save the file in. Defaults to the results dir
     :returns: the figure
     """
@@ -150,7 +153,7 @@ def plot_constraints(
     :param absolute_value: whether to plot the absolute value of the constraints
     :param title: title of the figure
     :param ylabel: label for the y-axis
-    :param log: whether to plot a log-plot
+    :param log: whether to plot a log-plot. Can also be set to "symlog"
     :param directory: directory to save the file in. Defaults to the results dir
     :returns: the figure
     """
@@ -190,7 +193,7 @@ def plot_constraints_diagnostics(
         the PDE for more details
     :param title: title of the figure
     :param ylabel: label for the y-axis
-    :param log: whether to plot a log-plot
+    :param log: whether to plot a log-plot. Can also be set to "symlog"
     :param directory: directory to save the file in. Defaults to the results dir
     :returns: the figure
     """
