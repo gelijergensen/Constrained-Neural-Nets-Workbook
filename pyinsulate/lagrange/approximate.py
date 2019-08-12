@@ -2,6 +2,7 @@
 
 from enum import Enum
 import torch
+import warnings
 
 try:
     from time import perf_counter
@@ -79,8 +80,9 @@ def compute_approximate_multipliers(
         Multipliers will have the same shape as the constraints
     :throws: RuntimeError if the jacobian of the constraints are not full rank
     """
-    print(
-        "WARNING: The approximation method for multiplier computation has been shown to be unstable. Do not use!"
+    warnings.warn(
+        "The approximation method for multiplier computation is unstable. It has therefore been deprecated",
+        DeprecationWarning,
     )
     # multipliers = (J(g(s)) J(g(s))^T)^{-1} (g(s) - J(g(s)) J(f(s))^T)
     #   where f is the loss, g is the constraints vector, and s is the

@@ -35,8 +35,6 @@ def default_configuration():
     learning_rate: learning rate. Defaults to 0.01
     method: method to use for constraining. See the event loop for more details
     reduction: reduction to use for constraining. See event loop for details
-    ground_approximation: string for when to ground the approximation. See 
-        event loop for more details
     """
     return {
         "seed": None,
@@ -63,7 +61,6 @@ def default_configuration():
         "method": "constrained",
         "constraint": helmholtz_equation,
         "reduction": None,
-        "ground_approximation": None,
     }
 
 
@@ -179,7 +176,6 @@ def run_experiment(
         monitor=training_monitor,
         method=kwargs["method"],
         reduction=kwargs["reduction"],
-        ground_approximation=kwargs["ground_approximation"],
     )
 
     # These are not trainers simply because we don't provide the optimizer
@@ -191,7 +187,6 @@ def run_experiment(
             monitor=evaluation_train_monitor,
             method=kwargs["method"],
             reduction=kwargs["reduction"],
-            ground_approximation=kwargs["ground_approximation"],
         )
     else:
         train_evaluator = None
@@ -203,7 +198,6 @@ def run_experiment(
             monitor=evaluation_test_monitor,
             method=kwargs["method"],
             reduction=kwargs["reduction"],
-            ground_approximation=kwargs["ground_approximation"],
         )
     else:
         test_evaluator = None

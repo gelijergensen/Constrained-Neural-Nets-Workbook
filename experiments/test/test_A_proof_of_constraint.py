@@ -26,17 +26,12 @@ def test_proof_of_constraint():
         "constrained",
         "batchwise",
         "reduction",
-        "approximate",
         "unconstrained",
         "soft-constrained",
         "no-loss",
         "non-projecting",
     ]:
-        reduction = (
-            Lp_Reduction(1)
-            if method in ["reduction", "approximate", "soft-constrained"]
-            else None
-        )
+        reduction = Lp_Reduction(1) if method in ["reduction"] else None
 
         for constraint, constraint_name in zip(
             [helmholtz_equation, pythagorean_equation],
