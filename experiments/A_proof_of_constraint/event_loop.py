@@ -47,7 +47,6 @@ def create_engine(
     guard=True,
     method="unconstrained",
     reduction=None,
-    ground_approximation=None,
 ):
     """Creates an engine with the necessary components. If optimizer is not
     provided, then will run inference
@@ -70,8 +69,6 @@ def create_engine(
             all constraints within the batch
         "reduction" - apply reduction before computing constraints. If no 
             reduction is specified, will throw error
-        "approximate" - approximate the optimal constraints using Broyden's 
-            trick. If no reduction is specified, will throw error
         "unconstrained" - don't constrain. Used as a control method
         "soft-constrained" - use soft constraints
         "no-loss" - intended entirely for debugging. Ignores the loss function
@@ -80,56 +77,10 @@ def create_engine(
             destroys the exponential convergence guarantee, but should be useful
             for debugging
     :param reduction: reduction to apply to constraints before computing 
-        constrained loss if method == "reduction" or "approximate"
-    :param ground_approximation: string for when to recompute the exact 
-        multipliers to ground the approximation. Should consist of a number 
-        followed by either "batches" or "epochs". e.g. "1 epochs", "3 batches"
+        constrained loss if method == "reduction"
     :returns: an ignite.engine.Engine whose output is (xb, yb, out) for every
         iteration
     """
-    # Setup whether we would ground on batches or epochs
-    ground_epochs = (
-        ground_approximation is not None and "epoch" in ground_approximation
-    )
-    if ground_approximation is not None:
-        ground_frequency = int(ground_approximation.split(" ")[0])
-    else:
-        ground_frequency = None
-
-    def should_ground(engine):
-        # If this is evaluation, there's no way the parameters can change
-        if optimizer is None:
-            return True
-
-        # We always ground on the first iteration ever
-        if engine.state.last_grounded == 0:
-            if ground_epochs:
-                engine.state.last_grounded = engine.state.epoch
-            else:
-                engine.state.last_grounded = engine.state.iteration
-            return True
-
-        if ground_approximation is None:
-            return False
-
-        if ground_epochs:
-            if (
-                engine.state.epoch - engine.state.last_grounded
-                == ground_frequency
-            ):
-                engine.state.last_grounded = engine.state.epoch
-                return True
-            else:
-                return False
-        else:
-            if (
-                engine.state.iteration - engine.state.last_grounded
-                == ground_frequency
-            ):
-                engine.state.last_grounded = engine.state.iteration
-                return True
-            else:
-                return False
 
     def end_section(engine, section_event, section_start_time):
         """End the section, tabulate the time, fire the event, and resume time"""
@@ -229,31 +180,6 @@ def create_engine(
                 engine.state.loss,
                 engine.state.constraints,
                 list(model.parameters()),
-                return_multipliers=True,
-                return_timing=True,
-                reduction=reduction,
-            )
-            engine.state.reduced_constraints = reduction(
-                engine.state.constraints
-            )
-            engine.state.times.update(multiplier_computation_timing)
-        elif method == "approximate":
-            if reduction is None:
-                raise ValueError(
-                    "Reduction must be specified if method=='approximate'"
-                )
-            if not hasattr(engine.state, "approximation_state"):
-                engine.state.approximation_state = None
-            engine.state.constrained_loss, engine.state.approximation_state, engine.state.multipliers, multiplier_computation_timing = constrain_loss(
-                engine.state.loss,
-                engine.state.constraints,
-                list(model.parameters()),
-                approximate=True,
-                state=(
-                    None
-                    if should_ground(engine)
-                    else engine.state.approximation_state
-                ),
                 return_multipliers=True,
                 return_timing=True,
                 reduction=reduction,
