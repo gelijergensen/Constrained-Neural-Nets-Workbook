@@ -62,6 +62,8 @@ def compute_approximate_multipliers(
     functions of the parameters, not the model input (i.e. a reduction must 
     have been applied along the batch axis of the loss and constraints)
 
+    WARNING: This method has been shown to be unstable and should not be used!
+
     :param loss: tensor corresponding to the evalutated loss
     :param constraints: a single tensor corresponding to the evaluated
         constraints (you may need to torch.stack() first)
@@ -77,6 +79,9 @@ def compute_approximate_multipliers(
         Multipliers will have the same shape as the constraints
     :throws: RuntimeError if the jacobian of the constraints are not full rank
     """
+    print(
+        "WARNING: The approximation method for multiplier computation has been shown to be unstable. Do not use!"
+    )
     # multipliers = (J(g(s)) J(g(s))^T)^{-1} (g(s) - J(g(s)) J(f(s))^T)
     #   where f is the loss, g is the constraints vector, and s is the
     #   paramters of the neural network

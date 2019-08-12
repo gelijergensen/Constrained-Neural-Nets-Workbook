@@ -27,10 +27,11 @@ def helmholtz_equation(
         outputs, inputs, batched=batched, create_graph=True, allow_unused=False
     )
 
-    frequency = 2 * np.pi * parameterization[..., 1]
+    frequency = (2 * np.pi * parameterization[..., 1]).view(outputs.size())
     # r$ \nabla^2 u = - k^2 u$
     lhs = lap
-    rhs = -(frequency * frequency).view(outputs.size()) * outputs
+    rhs = -frequency * frequency * outputs
+
     if return_diagnostics:
         return lhs - rhs, (lhs, rhs, jac)
     else:
@@ -40,9 +41,8 @@ def helmholtz_equation(
 def pythagorean_equation(
     outputs, inputs, parameterization, return_diagnostics=False
 ):
-    """Computes the Pythagorean equation (sin^2(x) + cos^x(y) = 1), assuming 
-    that the network is modeling a sine equation and therefore it's first
-    derivative should be a cosine
+    """Computes the Pythagorean equation ((f * y)^2 + (y')^2 = 1), assuming 
+    that the network should satisfy that f * f * y = y'' (Helmholtz)
     
     :param outputs: output of some network
     :param inputs: inputs to some network
@@ -57,9 +57,9 @@ def pythagorean_equation(
         outputs, inputs, batched=batched, create_graph=True, allow_unused=False
     )
 
-    frequency = 2 * np.pi * parameterization[..., 1]
+    frequency = (2 * np.pi * parameterization[..., 1]).view(outputs.size())
     # r$ (f * y)^2 + (y')^2 = 1$
-    lhs = (frequency * outputs) ** 2 + jac.view(outputs.size()) ** 2
+    lhs = (torch.mul(frequency, outputs)) ** 2 + jac.view(outputs.size()) ** 2
     rhs = lhs.new_ones(lhs.size())
     if return_diagnostics:
         return lhs - rhs, (lhs, rhs, jac)

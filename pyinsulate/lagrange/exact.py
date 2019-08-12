@@ -59,10 +59,12 @@ def compute_exact_multipliers(
         timing[event.value] = end_time - start_time
         return end_time
 
-    # Handle the special case of only one constraint
+    # Restructure the constraints into the shapes (batchsize, -1)
+    batchsize = 1 if len(loss.size()) == 0 else loss.size()[0]
     original_constraints_size = constraints.size()
-    if constraints.dim() == loss.dim():
-        constraints = constraints.unsqueeze(-1)
+    constraints = constraints.view(batchsize, -1)
+    # Restructure the loss into the shape (batchsize, )
+    loss = loss.view(batchsize)
 
     start_time = perf_counter()
 
@@ -100,6 +102,7 @@ def compute_exact_multipliers(
     # Possibly batched version of J(g) * J(g)^T
     gram_matrix = torch.einsum("...ij,...kj->...ik", jac_g, jac_g)
     start_time = record_timing(start_time, Timing_Events.COMPUTE_GRAM)
+
     untransformed_multipliers = (
         constraints - torch.einsum("...ij,...j->...i", jac_g, jac_fT)
     ).unsqueeze(-1)
@@ -131,16 +134,12 @@ def compute_exact_multipliers(
         multipliers = untransformed_multipliers.new_zeros(
             untransformed_multipliers.size()
         )
-        if len(original_constraints_size) > 1:
-            # torch.gels is NOT yet batch-enabled. As such, we do the batching manually
-            for b in range(len(multipliers)):
-                # discard the QR decomposition
-                multipliers[b], __ = torch.gels(
-                    untransformed_multipliers[b], gram_matrix[b]
-                )
-        else:
-            # not batched
-            multipliers, __ = torch.gels(untransformed_multipliers, gram_matrix)
+        # torch.gels is NOT yet batch-enabled. As such, we do the batching manually
+        for b in range(len(multipliers)):
+            # discard the QR decomposition
+            multipliers[b], __ = torch.gels(
+                untransformed_multipliers[b], gram_matrix[b]
+            )
         start_time = record_timing(start_time, Timing_Events.LEAST_SQUARES)
         timing[Timing_Events.ERRORED.value] = True
         timing[Timing_Events.CHOLESKY_SOLVE.value] = -999.0
