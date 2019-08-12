@@ -4,6 +4,7 @@ import os
 import torch
 import torch.nn as nn
 
+from pyinsulate.pdes import helmholtz_equation, pythagorean_equation
 from ..A_proof_of_constraint.main import run_experiment
 from ..A_proof_of_constraint.reductions import Lp_Reduction
 
@@ -20,6 +21,7 @@ def test_proof_of_constraint():
         os.remove(f)
 
     all_files = list()
+    failure = None
     for method in [
         "constrained",
         "batchwise",
@@ -35,39 +37,52 @@ def test_proof_of_constraint():
             if method in ["reduction", "approximate", "soft-constrained"]
             else None
         )
-        save_file = f"{save_file_base}_{method}"
 
-        num_epochs = 1
-        final_result = run_experiment(
-            num_epochs,
-            save_directory=directory,
-            save_file=save_file,
-            method=method,
-            reduction=reduction,
-        )
+        for constraint, constraint_name in zip(
+            [helmholtz_equation, pythagorean_equation],
+            ["helmholtz", "pythagorean"],
+        ):
 
-        # Try to load in the model again
-        files = glob.glob(f"{directory}/{save_file}*.pth")
-        all_files.extend(files)
+            save_file = f"{save_file_base}_{method}_{constraint_name}"
 
-        try:
-            assert len(files) == num_epochs
-
-            loaded_result = torch.load(files[-1])
-
-            loaded_config = loaded_result["configuration"]
-            final_config = final_result[0]
-
-            # Can't compare the functions directly
-            assert type(loaded_config.pop("model_act")) == type(
-                final_config.pop("model_act")
+            num_epochs = 1
+            final_result = run_experiment(
+                num_epochs,
+                save_directory=directory,
+                save_file=save_file,
+                method=method,
+                constraint=constraint,
+                reduction=reduction,
             )
-            assert loaded_config == final_config  # Remainder compared directly
 
-        except AssertionError as assertFailed:
-            failure = assertFailed
-        else:
-            failure = None
+            # Try to load in the model again
+            files = glob.glob(f"{directory}/{save_file}*.pth")
+            all_files.extend(files)
+
+            try:
+                assert len(files) == num_epochs
+
+                loaded_result = torch.load(files[-1])
+
+                loaded_config = loaded_result["configuration"]
+                final_config = final_result[0]
+
+                # Can't compare the functions directly
+                assert type(loaded_config.pop("model_act")) == type(
+                    final_config.pop("model_act")
+                )
+                # Can't compare the reductions directly
+                assert type(loaded_config.pop("reduction")) == type(
+                    final_config.pop("reduction")
+                )
+                assert (
+                    loaded_config == final_config
+                )  # Remainder compared directly
+
+            except AssertionError as assertFailed:
+                failure = assertFailed
+            else:
+                failure is None
 
     # cleanup
     for f in all_files:
