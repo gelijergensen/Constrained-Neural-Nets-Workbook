@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 from pyinsulate.ignite import GradientConstraint, GradientLoss
-from pyinsulate.pdes import helmholtz_equation
+from pyinsulate.pdes import helmholtz_equation, pythagorean_equation
 
 from .checkpointer import ModelAndMonitorCheckpointer
 from .dataloader import get_multiwave_dataloaders
@@ -61,6 +61,7 @@ def default_configuration():
         "model_final_act": None,
         "learning_rate": 0.01,
         "method": "constrained",
+        "constraint": helmholtz_equation,
         "reduction": None,
         "ground_approximation": None,
     }
@@ -95,7 +96,7 @@ def get_loss_and_constraint(configuration):
     """Retrieves the loss and constraint"""
     # We need the entire batch of losses, not it's sum
     loss = nn.MSELoss(reduction="none")
-    constraint = helmholtz_equation
+    constraint = configuration["constraint"]
     return loss, constraint
 
 
