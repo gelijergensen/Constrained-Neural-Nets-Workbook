@@ -3,9 +3,9 @@
 import numpy as np
 import torch
 
-from pyinsulate.derivatives import jacobian_and_laplacian, divergence
+from pyinsulate.derivatives import jacobian, jacobian_and_laplacian
 
-__all__ = ["helmholtz_equation"]
+__all__ = ["helmholtz_equation", "pythagorean_equation"]
 
 
 def helmholtz_equation(
@@ -31,6 +31,36 @@ def helmholtz_equation(
     # r$ \nabla^2 u = - k^2 u$
     lhs = lap
     rhs = -(frequency * frequency).view(outputs.size()) * outputs
+    if return_diagnostics:
+        return lhs - rhs, (lhs, rhs, jac)
+    else:
+        return lhs - rhs
+
+
+def pythagorean_equation(
+    outputs, inputs, parameterization, return_diagnostics=False
+):
+    """Computes the Pythagorean equation (sin^2(x) + cos^x(y) = 1), assuming 
+    that the network is modeling a sine equation and therefore it's first
+    derivative should be a cosine
+    
+    :param outputs: output of some network
+    :param inputs: inputs to some network
+    :param parameterization: parameterization of the PDE which we expect to 
+        follow: [amplitude, frequency, phase]
+    :param return_diagnostics: whether to return an object containing 
+        diagnostics information
+    :return PDE value (, diagnostics tuple)
+    """
+    batched = len(inputs.size()) > 1
+    jac = jacobian(
+        outputs, inputs, batched=batched, create_graph=True, allow_unused=False
+    )
+
+    frequency = 2 * np.pi * parameterization[..., 1]
+    # r$ (f * y)^2 + (y')^2 = 1$
+    lhs = (frequency * outputs) ** 2 + jac.view(outputs.size()) ** 2
+    rhs = lhs.new_ones(lhs.size())
     if return_diagnostics:
         return lhs - rhs, (lhs, rhs, jac)
     else:
