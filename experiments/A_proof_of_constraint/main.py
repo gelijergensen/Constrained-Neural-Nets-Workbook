@@ -179,6 +179,7 @@ def run_experiment(
         monitor=training_monitor,
         method=kwargs["method"],
         reduction=kwargs["reduction"],
+        device=kwargs["device"],
     )
 
     # These are not trainers simply because we don't provide the optimizer
@@ -190,6 +191,7 @@ def run_experiment(
             monitor=evaluation_train_monitor,
             method=kwargs["method"],
             reduction=kwargs["reduction"],
+            device=kwargs["device"],
         )
     else:
         train_evaluator = None
@@ -201,6 +203,7 @@ def run_experiment(
             monitor=evaluation_test_monitor,
             method=kwargs["method"],
             reduction=kwargs["reduction"],
+            device=kwargs["device"],
         )
     else:
         test_evaluator = None

@@ -92,6 +92,7 @@ def create_engine(
         return perf_counter()
 
     def proof_of_constraint_iteration(engine, batch):
+
         if not hasattr(engine.state, "last_grounded"):
             engine.state.last_grounded = 0
         if not hasattr(engine.state, "times"):
@@ -107,8 +108,6 @@ def create_engine(
         engine.state.xb, engine.state.yb = prepare_batch(
             batch, device=torch.device(device)
         )
-
-        print(f"xb: {engine.state.xb}")
 
         section_start = end_section(
             engine, Sub_Batch_Events.DATA_LOADED, section_start
@@ -164,7 +163,9 @@ def create_engine(
                 return_timing=True,
                 # defaults are for this method
             )
-            engine.state.reduced_constraints = engine.state.constraints.new_zeros(1)
+            engine.state.reduced_constraints = engine.state.constraints.new_zeros(
+                1
+            )
             engine.state.constrained_loss = torch.mean(constrained_loss)
             engine.state.times.update(multiplier_computation_timing)
         elif method == "batchwise":
@@ -176,7 +177,9 @@ def create_engine(
                 return_timing=True,
                 batchwise=True,
             )
-            engine.state.reduced_constraints = engine.state.constraints.new_zeros(1)
+            engine.state.reduced_constraints = engine.state.constraints.new_zeros(
+                1
+            )
             engine.state.times.update(multiplier_computation_timing)
         elif method == "reduction":
             if reduction is None:
@@ -202,14 +205,18 @@ def create_engine(
             engine.state.constrained_loss = torch.mean(
                 engine.state.loss
             ) + torch.mean(engine.state.constraints * engine.state.constraints)
-            engine.state.reduced_constraints = engine.state.constraints.new_zeros(1)
+            engine.state.reduced_constraints = engine.state.constraints.new_zeros(
+                1
+            )
         elif method == "unconstrained":
             # Technically the multipliers are zero, so we set this for consistency
             engine.state.multipliers = engine.state.constraints.new_zeros(
                 engine.state.constraints.size()
             )
             engine.state.constrained_loss = torch.mean(engine.state.loss)
-            engine.state.reduced_constraints = engine.state.constraints.new_zeros(1)
+            engine.state.reduced_constraints = engine.state.constraints.new_zeros(
+                1
+            )
         elif method == "no-loss":
             constrained_loss, engine.state.multipliers, multiplier_computation_timing = constrain_loss(
                 engine.state.loss.new_zeros(
@@ -222,7 +229,9 @@ def create_engine(
             )
             engine.state.constrained_loss = torch.mean(constrained_loss)
             engine.state.times.update(multiplier_computation_timing)
-            engine.state.reduced_constraints = engine.state.constraints.new_zeros(1)
+            engine.state.reduced_constraints = engine.state.constraints.new_zeros(
+                1
+            )
         elif method == "non-projecting":
             correction_term, engine.state.multipliers, multiplier_computation_timing = constrain_loss(
                 engine.state.loss.new_zeros(
@@ -237,7 +246,9 @@ def create_engine(
                 engine.state.loss + correction_term
             )
             engine.state.times.update(multiplier_computation_timing)
-            engine.state.reduced_constraints = engine.state.constraints.new_zeros(1)
+            engine.state.reduced_constraints = engine.state.constraints.new_zeros(
+                1
+            )
         else:
             raise ValueError(f"Method {method} not known. Please respecify")
 
