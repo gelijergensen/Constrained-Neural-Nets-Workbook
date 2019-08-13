@@ -132,7 +132,7 @@ def compute_exact_multipliers(
                 torch.stack(
                     [
                         torch.abs(torch.det(gram_matrix[i]))
-                        for i in len(gram_matrix)
+                        for i in range(len(gram_matrix))
                     ]
                 )
             )
