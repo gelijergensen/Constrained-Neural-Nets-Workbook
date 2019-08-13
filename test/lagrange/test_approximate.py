@@ -6,6 +6,9 @@ from pyinsulate.lagrange.exact import compute_exact_multipliers
 from pyinsulate.lagrange.approximate import compute_approximate_multipliers
 
 
+@pytest.mark.filterwarnings(
+    "ignore:The approximation method for multiplier computation is unstable. It has therefore been deprecated"
+)
 def test_compute_approximate_multipliers():
 
     rand_size = np.random.randint(2, 10)

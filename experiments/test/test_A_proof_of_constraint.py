@@ -4,7 +4,10 @@ import os
 import torch
 import torch.nn as nn
 
-from pyinsulate.pdes import helmholtz_equation, pythagorean_equation
+from ..A_proof_of_constraint.constraints import (
+    helmholtz_equation,
+    pythagorean_equation,
+)
 from ..A_proof_of_constraint.main import run_experiment
 from ..A_proof_of_constraint.reductions import Lp_Reduction
 

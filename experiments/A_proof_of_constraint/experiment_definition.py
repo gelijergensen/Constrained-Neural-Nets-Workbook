@@ -5,10 +5,15 @@ import numpy as np
 import sys
 from torch import nn
 
+from experiments.A_proof_of_constraint.constraints import (
+    helmholtz_equation,
+    pythagorean_equation,
+)
+
 from experiments.A_proof_of_constraint.model import (
     Dense,
     ParameterizedDense,
-    swish,
+    Swish,
 )
 from experiments.A_proof_of_constraint.reductions import (
     Huber_Reduction,
@@ -63,9 +68,8 @@ CONFIGURATIONS = list(
             "architecture": [ParameterizedDense],
             "model_size": [[50, 50, 50, 50, 50]],
             "learning_rate": [1e-3],
-            "ground_approximation": [None],
             "reduction": [Huber_Reduction(6)],
-            "model_act": [nn.Tanh(), swish],
+            "model_act": [nn.Tanh(), Swish()],
             "num_epochs": [500],
             "save_directory": ["results/checkpoints"],
             "save_interval": [10],
@@ -75,6 +79,7 @@ CONFIGURATIONS = list(
                 "reduction",
                 # "constrained",
             ],
+            "constraint": [helmholtz_equation],
         }
     )
 )

@@ -8,9 +8,9 @@ import torch.nn as nn
 import torch.optim as optim
 
 from pyinsulate.ignite import GradientConstraint, GradientLoss
-from pyinsulate.pdes import helmholtz_equation, pythagorean_equation
 
 from .checkpointer import ModelAndMonitorCheckpointer
+from .constraints import helmholtz_equation, pythagorean_equation
 from .dataloader import get_multiwave_dataloaders
 from .event_loop import create_engine, Sub_Batch_Events
 from .model import Dense, ParameterizedDense

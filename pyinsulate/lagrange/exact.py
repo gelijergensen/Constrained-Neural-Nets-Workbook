@@ -126,9 +126,33 @@ def compute_exact_multipliers(
             print(rte)
             print(
                 "Constraints are likely ill-conditioned (i.e. jacobian is"
-                " not full rank at this point). Falling back to computing"
-                " pseudoinverse"
+                " not full rank at this point)! Investingating..."
             )
+            det_idx = torch.argmin(
+                torch.stack(
+                    [
+                        torch.abs(torch.det(gram_matrix[i]))
+                        for i in range(len(gram_matrix))
+                    ]
+                )
+            )
+            det = torch.det(gram_matrix[det_idx])
+            print(f"Minimum abs(det(gram_matrix)): {det}")
+            if torch.allclose(det, det.new_zeros(det.size())):
+                print(
+                    "Jacobian is indeed not full rank... Falling back to computing pseudoinverse"
+                )
+            else:
+                print("Unknown reason for error. Printing complete diagnostics")
+                print(f"jac_g.size(): {jac_g.size()}")
+                print(
+                    f"Jacobian of smallest abs(det(gram_matrix)): {jac_g[det_idx]}"
+                )
+                print(
+                    f"gram_matrix of smallest abs(det(gram_matrix)): {gram_matrix[det_idx]}"
+                )
+                print("Falling back to computing pseudoinverse")
+
             if warn == "error":
                 raise rte
         multipliers = untransformed_multipliers.new_zeros(
