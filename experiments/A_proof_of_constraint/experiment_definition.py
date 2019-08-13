@@ -5,7 +5,10 @@ import numpy as np
 import sys
 from torch import nn
 
-from pyinsulate.pdes import helmholtz_equation, pythagorean_equation
+from experiments.A_proof_of_constraint.constraints import (
+    helmholtz_equation,
+    pythagorean_equation,
+)
 
 from experiments.A_proof_of_constraint.model import (
     Dense,

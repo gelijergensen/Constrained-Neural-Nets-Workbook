@@ -112,7 +112,6 @@ def compute_exact_multipliers(
 
     try:
         # We do this this way because there is some chance we can provide this externally later
-        print(f"torch.det(gram_matrix[0]): {torch.det(gram_matrix[0])}")
         cholesky_L = torch.cholesky(gram_matrix)
         start_time = record_timing(start_time, Timing_Events.CHOLESKY)
         multipliers = torch.cholesky_solve(
@@ -127,13 +126,32 @@ def compute_exact_multipliers(
             print(rte)
             print(
                 "Constraints are likely ill-conditioned (i.e. jacobian is"
-                " not full rank at this point). Falling back to computing"
-                " pseudoinverse"
+                " not full rank at this point)! Investingating..."
             )
-
-            print(f"jac_g.size(): {jac_g.size()}")
-            print(f"Jacobian: {jac_g[0]}")
-            print(f"gram_matrix: {gram_matrix[0]}")
+            det_idx = torch.argmin(
+                torch.stack(
+                    [
+                        torch.abs(torch.det(gram_matrix[i]))
+                        for i in len(gram_matrix)
+                    ]
+                )
+            )
+            det = torch.det(gram_matrix[det_idx])
+            print(f"Minimum abs(det(gram_matrix)): {det}")
+            if torch.allclose(det, det.new_zeros(det.size())):
+                print(
+                    "Jacobian is indeed not full rank... Falling back to computing pseudoinverse"
+                )
+            else:
+                print("Unknown reason for error. Printing complete diagnostics")
+                print(f"jac_g.size(): {jac_g.size()}")
+                print(
+                    f"Jacobian of smallest abs(det(gram_matrix)): {jac_g[det_idx]}"
+                )
+                print(
+                    f"gram_matrix of smallest abs(det(gram_matrix)): {gram_matrix[det_idx]}"
+                )
+                print("Falling back to computing pseudoinverse")
 
             if warn == "error":
                 raise rte

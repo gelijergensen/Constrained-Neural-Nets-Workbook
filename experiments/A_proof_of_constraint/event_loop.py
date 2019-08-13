@@ -142,8 +142,9 @@ def create_engine(
         )
 
         engine.state.constraints, engine.state.constraints_diagnostics = constraint_fn(
-            engine.state.out, *engine.state.xb, return_diagnostics=True
-        )
+            engine.state.out, engine.state.xb, model, True
+        )  # last parameter is to return diagnostics
+
         section_start = end_section(
             engine, Sub_Batch_Events.CONSTRAINTS_COMPUTED, section_start
         )
