@@ -45,7 +45,7 @@ def constrain_loss(
     """
     if batchwise:
         reduced_loss = torch.mean(loss)
-        reduced_constraints = constraints.view(-1)
+        reduced_constraints = constraints.view(1, -1)
     elif reduction is not None:
         reduced_loss = torch.mean(loss)
         reduced_constraints = reduction(constraints)

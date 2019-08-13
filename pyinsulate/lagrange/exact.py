@@ -112,6 +112,7 @@ def compute_exact_multipliers(
 
     try:
         # We do this this way because there is some chance we can provide this externally later
+        print(f"torch.det(gram_matrix[0]): {torch.det(gram_matrix[0])}")
         cholesky_L = torch.cholesky(gram_matrix)
         start_time = record_timing(start_time, Timing_Events.CHOLESKY)
         multipliers = torch.cholesky_solve(
@@ -129,6 +130,11 @@ def compute_exact_multipliers(
                 " not full rank at this point). Falling back to computing"
                 " pseudoinverse"
             )
+
+            print(f"jac_g.size(): {jac_g.size()}")
+            print(f"Jacobian: {jac_g[0]}")
+            print(f"gram_matrix: {gram_matrix[0]}")
+
             if warn == "error":
                 raise rte
         multipliers = untransformed_multipliers.new_zeros(
