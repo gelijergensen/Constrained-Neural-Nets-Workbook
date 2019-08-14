@@ -8,7 +8,12 @@ from .readability_utils import _clean_label, _correct_and_clean_labels
 from .retrieval_utils import retrieve_object
 
 
-__all__ = ["plot_constraints_distribution", "plot_parameters_distribution"]
+__all__ = [
+    "plot_loss_distribution",
+    "plot_reduced_constraints_distribution",
+    "plot_constraints_distribution",
+    "plot_parameters_distribution",
+]
 
 
 def _plot_object_distribution(
@@ -65,23 +70,19 @@ def _plot_object_distribution(
         for monitor, suffix in zip(monitor_set, suffixes):
             if monitor is None:
                 continue
-            data = retrieve_object(monitor, object_string, **retrieval_kwargs)
+            percentiles = np.array(
+                retrieve_object(monitor, object_string, **retrieval_kwargs)
+            )
             if plot_iterations:
                 # flatten the batch axis into the epoch axis
-                data = data.reshape(-1, data.shape[2:])
+                percentiles = percentiles.reshape(-1, percentiles.shape[2:])
                 xvalues = np.array(monitor.iteration).ravel()
             else:
                 xvalues = np.array(monitor.epoch)
-            # Retrieve all 100 percentiles
-            percentiles = np.percentile(
-                data,
-                np.linspace(0, 100, num=101),  # Must be odd
-                axis=1,  # 0th axis is epoch
-            )
-            midpoint = int((len(percentiles) - 1) / 2)
+            midpoint = int((percentiles.shape[1] - 1) / 2)
             line2d = plt.plot(
                 xvalues,
-                percentiles[midpoint],
+                percentiles[:, midpoint],
                 "-",
                 label=f"{label}{suffix}",
                 zorder=10,
@@ -91,16 +92,16 @@ def _plot_object_distribution(
             for i in range(midpoint):
                 plt.fill_between(
                     xvalues,
-                    percentiles[i],
-                    percentiles[-i - 1],
+                    percentiles[:, i],
+                    percentiles[:, -i - 1],
                     color=color,
                     alpha=(
-                        5.0 / (len(percentiles) - 1)
+                        5.0 / (percentiles.shape[1] - 1)
                     ),  # This requires >5 percentiles!
                     zorder=0,
                 )
-            plt.plot(xvalues, percentiles[0], ":", color=color, zorder=10)
-            plt.plot(xvalues, percentiles[-1], ":", color=color, zorder=10)
+            plt.plot(xvalues, percentiles[:, 0], ":", color=color, zorder=10)
+            plt.plot(xvalues, percentiles[:, -1], ":", color=color, zorder=10)
     plt.title(title)
     plt.ylabel(ylabel)
     plt.xlabel("Iteration" if plot_iterations else "Epoch")
@@ -121,6 +122,76 @@ def _plot_object_distribution(
         print(f"Saving {object_string} distribution plot to {filepath}")
         plt.savefig(filepath, dpi=300)
     return fig
+
+
+def plot_loss_distribution(
+    monitors,
+    labels,
+    savefile,
+    absolute_value=False,
+    title="Losses",
+    ylabel="Loss value",
+    log=False,
+    directory=DEFAULT_DIRECTORY,
+):
+    """Plots the distribution of the loss over the epoch
+
+    :param monitors: a list of monitors, e.g. [training, evaluation]
+    :param labels: a list of strings for the label of each monitor
+    :param savefile: name of the file to save. If none, then will not save
+    :param absolute_value: whether to plot the absolute value of the constraints
+    :param title: title of the figure
+    :param ylabel: label for the y-axis
+    :param log: whether to plot a log-plot. Can also be set to "symlog"
+    :param directory: directory to save the file in. Defaults to the results dir
+    :returns: the figure
+    """
+    object_string = "loss"
+    return _plot_object_distribution(
+        monitors,
+        labels,
+        savefile,
+        object_string,
+        title=title,
+        ylabel=ylabel,
+        log=log,
+        directory=directory,
+    )
+
+
+def plot_reduced_constraints_distribution(
+    monitors,
+    labels,
+    savefile,
+    absolute_value=False,
+    title="Reduced constraint",
+    ylabel="Reduced constraint value",
+    log=False,
+    directory=DEFAULT_DIRECTORY,
+):
+    """Plots the distribution of the loss over the epoch
+
+    :param monitors: a list of monitors, e.g. [training, evaluation]
+    :param labels: a list of strings for the label of each monitor
+    :param savefile: name of the file to save. If none, then will not save
+    :param absolute_value: whether to plot the absolute value of the constraints
+    :param title: title of the figure
+    :param ylabel: label for the y-axis
+    :param log: whether to plot a log-plot. Can also be set to "symlog"
+    :param directory: directory to save the file in. Defaults to the results dir
+    :returns: the figure
+    """
+    object_string = "reduced_constraints"
+    return _plot_object_distribution(
+        monitors,
+        labels,
+        savefile,
+        object_string,
+        title=title,
+        ylabel=ylabel,
+        log=log,
+        directory=directory,
+    )
 
 
 def plot_constraints_distribution(
@@ -151,10 +222,7 @@ def plot_constraints_distribution(
         labels,
         savefile,
         object_string,
-        retrieval_kwargs={
-            "distribution": True,
-            "absolute_value": absolute_value,
-        },
+        retrieval_kwargs={"absolute_value": absolute_value},
         title=title,
         ylabel=ylabel,
         log=log,

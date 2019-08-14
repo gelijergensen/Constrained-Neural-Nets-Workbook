@@ -12,19 +12,22 @@ class ProofOfConstraintMonitor(Monitor):
 
         # epoch and iteration are recorded automatically
         self.add_key("batch_size")
-        self.add_key("loss")
+        self.add_key("loss_percentiles")
+        self.add_key("loss_abs_percentiles")
         self.add_key("mean_loss")
         self.add_key("constrained_loss")
-        self.add_key("constraints")
+        self.add_key("constraints_percentiles")
+        self.add_key("constraints_abs_percentiles")
         self.add_key("reduced_constraints")
-        self.add_key("constraints_diagnostics")
+        # self.add_key("constraints_diagnostics")
         self.add_key("model_parameters")
         self.add_key("model_parameters_grad")
         self.add_key("timing")
+        self.timing_keys = None
 
     def summarize(self):
-        mean_loss = np.mean(self.get("mean_loss", -1))
-        mean_constrained_loss = np.mean(self.get("constrained_loss", -1))
+        mean_loss = np.mean(self.mean_loss[-1])
+        mean_constrained_loss = np.mean(self.constrained_loss[-1])
         summary = f"Mean constrained loss: {mean_constrained_loss:0.5f}, Mean loss: {mean_loss:0.5f}"
         return summary
 
@@ -39,11 +42,17 @@ class ProofOfConstraintMonitor(Monitor):
     def finalize(self, engine):
         self.add_value("batch_size", np.array(self.ctx["batch_size"]))
         self.add_value(
-            "loss",
+            "loss_percentiles",
             np.percentile(
-                torch.cat(self.ctx["loss"], dim=0).data,
+                torch.cat(self.ctx["loss"], dim=0).numpy(),
                 np.linspace(0, 100, num=101),
-                axis=0,
+            ),
+        )
+        self.add_value(
+            "loss_abs_percentiles",
+            np.percentile(
+                torch.abs(torch.cat(self.ctx["loss"], dim=0)).numpy(),
+                np.linspace(0, 100, num=101),
             ),
         )
         self.add_value(
@@ -61,19 +70,24 @@ class ProofOfConstraintMonitor(Monitor):
             ),
         )
         self.add_value(
-            "constraints",
+            "constraints_percentiles",
             np.percentile(
-                torch.cat(self.ctx["constraints"], dim=0).data,
+                torch.cat(self.ctx["constraints"], dim=0).numpy(),
                 np.linspace(0, 100, num=101),
-                axis=0,
+            ),
+        )
+        self.add_value(
+            "constraints_abs_percentiles",
+            np.percentile(
+                torch.abs(torch.cat(self.ctx["constraints"], dim=0)).numpy(),
+                np.linspace(0, 100, num=101),
             ),
         )
         self.add_value(
             "reduced_constraints",
-            np.percentile(
-                torch.cat(self.ctx["reduced_constraints"], dim=0).data,
-                np.linspace(0, 100, num=101),
-                axis=0,
+            np.average(
+                np.array(self.ctx["reduced_constraints"]),
+                weights=np.array(self.ctx["batch_size"]),
             ),
         )
         # I don't know whether I want to keep this, really
@@ -82,9 +96,8 @@ class ProofOfConstraintMonitor(Monitor):
             self.add_value(
                 "model_parameters",
                 np.percentile(
-                    self.ctx["model_parameters"][0].data,
+                    self.ctx["model_parameters"][0].numpy(),
                     np.linspace(0, 100, num=101),
-                    axis=0,
                 ),
             )
         else:
@@ -92,33 +105,39 @@ class ProofOfConstraintMonitor(Monitor):
             self.add_value(
                 "model_parameters",
                 np.percentile(
-                    torch.stack(self.ctx["model_parameters"], dim=0).data,
+                    torch.stack(self.ctx["model_parameters"], dim=0).numpy(),
                     np.linspace(0, 100, num=101),
                 ),
             )
             self.add_value(
                 "model_parameters_grad",
                 np.percentile(
-                    torch.stack(self.ctx["model_parameters_grad"], dim=0).data,
+                    torch.stack(
+                        self.ctx["model_parameters_grad"], dim=0
+                    ).numpy(),
                     np.linspace(0, 100, num=101),
                 ),
             )
-        self.add_value(
-            "timing",
-            {
-                key: np.average(
-                    [
-                        self.ctx["timing"][i][key]
-                        for i in range(len(self.ctx["timing"]))
-                    ],
-                    weights=np.array(self.ctx["batch_size"]),
-                )
-                for key in self.ctx["timing"][0].keys()
-            },
+
+        # only the items with full batches
+        timing_mask = (
+            np.array(self.ctx["batch_size"])
+            == np.array(self.ctx["batch_size"])[0]
         )
+        timing_dict = dict()
+        for key in self.timing_keys:
+            times = np.array(
+                [
+                    self.ctx["timing"][i][key]
+                    for i in range(len(self.ctx["timing"]))
+                ]
+            )
+            timing_dict[key] = np.average(
+                times[np.logical_and(timing_mask, times > -998)]
+            )
+        self.add_value("timing", timing_dict)
 
     def __call__(self, engine):
-
         self.ctx["batch_size"].append(len(self.get_tensor(engine.state.xb[0])))
         self.ctx["loss"].append(self.get_tensor(engine.state.loss))
         self.ctx["mean_loss"].append(
@@ -130,8 +149,9 @@ class ProofOfConstraintMonitor(Monitor):
         self.ctx["constraints"].append(
             self.get_tensor(engine.state.constraints)
         )
+        # Only true because single constraint!
         self.ctx["reduced_constraints"].append(
-            self.get_tensor(engine.state.reduced_constraints)
+            self.get_tensor_item(engine.state.reduced_constraints)
         )
         self.ctx["constraints_diagnostics"].append(
             map(self.get_tensor, engine.state.constraints_diagnostics)
@@ -149,4 +169,6 @@ class ProofOfConstraintMonitor(Monitor):
                 self.get_tensor(engine.state.model_parameters_grad)
             )
         self.ctx["timing"].append(engine.state.times.copy())
+        if self.timing_keys is None:
+            self.timing_keys = list(engine.state.times.keys())
 

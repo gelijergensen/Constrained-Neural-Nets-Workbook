@@ -7,7 +7,10 @@ from .readability_utils import _clean_label, _correct_and_clean_labels
 from .retrieval_utils import retrieve_object
 
 
-__all__ = ["plot_loss", "plot_constraints", "plot_constraints_diagnostics"]
+__all__ = [
+    "plot_loss",
+    "plot_reduced_constraints",
+]  # , "plot_constraints", "plot_constraints_diagnostics"]
 
 
 def _plot_object(
@@ -140,12 +143,11 @@ def plot_loss(
     )
 
 
-def plot_constraints(
+def plot_reduced_constraints(
     monitors,
     labels,
     savefile,
     absolute_value=False,
-    reduced=False,
     title="Constraint",
     ylabel="Average constraint value",
     log=False,
@@ -163,10 +165,7 @@ def plot_constraints(
     :param directory: directory to save the file in. Defaults to the results dir
     :returns: the figure
     """
-    if reduced:
-        object_string = "reduced_constraints"
-    else:
-        object_string = "constraints"
+    object_string = "reduced_constraints"
     return _plot_object(
         monitors,
         labels,
@@ -180,38 +179,38 @@ def plot_constraints(
     )
 
 
-def plot_constraints_diagnostics(
-    monitors,
-    labels,
-    savefile,
-    diagnostics_index,
-    title="Constraint magnitude",
-    ylabel="Average constraint magnitude",
-    log=False,
-    directory=DEFAULT_DIRECTORY,
-):
-    """Plots the magnitude of the constraints
-    
-    :param monitors: a list of monitors, e.g. [training, evaluation]
-    :param labels: a list of strings for the label of each monitor
-    :param savefile: name of the file to save. If none, then will not save
-    :param diagnostics_index: index of the diagnostics tensor to retreive. See 
-        the PDE for more details
-    :param title: title of the figure
-    :param ylabel: label for the y-axis
-    :param log: whether to plot a log-plot. Can also be set to "symlog"
-    :param directory: directory to save the file in. Defaults to the results dir
-    :returns: the figure
-    """
-    object_string = "constraints_diagnostics"
-    return _plot_object(
-        monitors,
-        labels,
-        savefile,
-        object_string,
-        retrieval_kwargs={"index": diagnostics_index},
-        title=title,
-        ylabel=ylabel,
-        log=log,
-        directory=directory,
-    )
+# def plot_constraints_diagnostics(
+#     monitors,
+#     labels,
+#     savefile,
+#     diagnostics_index,
+#     title="Constraint magnitude",
+#     ylabel="Average constraint magnitude",
+#     log=False,
+#     directory=DEFAULT_DIRECTORY,
+# ):
+#     """Plots the magnitude of the constraints
+
+#     :param monitors: a list of monitors, e.g. [training, evaluation]
+#     :param labels: a list of strings for the label of each monitor
+#     :param savefile: name of the file to save. If none, then will not save
+#     :param diagnostics_index: index of the diagnostics tensor to retreive. See
+#         the PDE for more details
+#     :param title: title of the figure
+#     :param ylabel: label for the y-axis
+#     :param log: whether to plot a log-plot. Can also be set to "symlog"
+#     :param directory: directory to save the file in. Defaults to the results dir
+#     :returns: the figure
+#     """
+#     object_string = "constraints_diagnostics"
+#     return _plot_object(
+#         monitors,
+#         labels,
+#         savefile,
+#         object_string,
+#         retrieval_kwargs={"index": diagnostics_index},
+#         title=title,
+#         ylabel=ylabel,
+#         log=log,
+#         directory=directory,
+#     )

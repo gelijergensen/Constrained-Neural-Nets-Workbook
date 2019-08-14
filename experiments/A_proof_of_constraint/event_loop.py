@@ -31,9 +31,13 @@ class Sub_Batch_Events(Enum):
 
 def prepare_batch(batch, device=None, non_blocking=False):
     """Prepare batch for training: pass to a device with options."""
-    return tuple(
-        convert_tensor(x, device=device, non_blocking=non_blocking)
-        for x in batch
+    xb, yb = batch
+    return (
+        tuple(
+            convert_tensor(x, device=device, non_blocking=non_blocking)
+            for x in xb
+        ),
+        convert_tensor(yb, device=device, non_blocking=non_blocking),
     )
 
 

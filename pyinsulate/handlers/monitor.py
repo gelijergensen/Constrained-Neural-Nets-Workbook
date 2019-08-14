@@ -90,7 +90,7 @@ class Monitor(object):
     def end_epoch(self, engine):
         self.finalize(engine)
         # Reset the monitor context so that we don't end up checkpointing it
-        self.ctx = MonitorContext
+        self.ctx = MonitorContext()
 
     def add_key(self, key, mean=False, std=False, percentiles=None):
         """Configure a new key to be monitored
