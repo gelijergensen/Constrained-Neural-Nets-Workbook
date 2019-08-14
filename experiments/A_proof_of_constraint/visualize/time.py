@@ -41,7 +41,7 @@ def plot_time(
             time_keys.update(
                 [
                     key
-                    for key in monitor.timing[0][0].keys()
+                    for key in monitor.timing_keys
                     if "error" not in key and "recomputed" not in key
                 ]
             )
@@ -49,29 +49,17 @@ def plot_time(
 
     all_average_times = list()
     for monitor in monitors:
-        batch_sizes = np.array(monitor.get("batch_size"))
-        # only the batches with a full batch size (assume first batch is full)
-        valid_observations = batch_sizes == batch_sizes.ravel()[0]
 
         average_times = list()
         for key in time_keys:
-            if key not in monitor.timing[0][0]:
+            if key not in monitor.timing_keys:
                 average_times.append(0.0)
                 continue
-            times = np.array(
-                [
-                    [batch_time.get(key, -999.0) for batch_time in epoch_times]
-                    for epoch_times in monitor.timing
-                ]
-            )
-            # average ignoring invalid observations and flag values of -999.0
+
             average_times.append(
-                np.nan_to_num(
-                    np.mean(
-                        times[np.logical_and(valid_observations, times > -998)]
-                    )
-                )
+                np.average([time_dict[key] for time_dict in monitor.timing])
             )
+
         all_average_times.append(average_times)
     all_average_times = np.array(all_average_times)
 

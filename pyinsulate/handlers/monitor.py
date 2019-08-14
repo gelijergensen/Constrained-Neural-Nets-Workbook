@@ -1,6 +1,25 @@
 """A handler which stores objects from an engine which are to be watched"""
 
 from ignite.engine import Events
+import numpy as np
+
+
+class MonitorContext(object):
+    """This object looks like a dict of lists, but it will add new keys at runtime"""
+
+    def __init__(self):
+        self._dictionary = dict()
+
+    def __getitem__(self, item):
+        if item not in self._dictionary:
+            self._dictionary[item] = list()
+        return self._dictionary[item]
+
+    def __str__(self):
+        return str(self._dictionary)
+
+    def __repr__(self):
+        return repr(self._dictionary)
 
 
 class Monitor(object):
@@ -10,89 +29,118 @@ class Monitor(object):
     value onto the Monitor and for the retrieval of those values with the set()
     and get() methods."""
 
-    def __init__(self):
-        self._all_keys = list()
-        self._should_key_average = dict()
-        self._counts = dict()
-        self._last_iteration = 0
-        self._last_epoch = 0
+    @staticmethod
+    def _get_temp_attr_key(key):
+        return f"_temporary_{key}_"
 
-        self.add("epoch", average=True)
-        self.add("iteration", average=False)
+    def __init__(self, is_evaluation=False):
+        """Initializes the monitor only by specifiying whether this is a 
+        training or evaluation monitor
+
+        :param is_evaluation: True if this monitor is an evaluation monitor
+        """
+        self.is_evaluation = is_evaluation
+        self._all_keys = list()
+
+        self.ctx = MonitorContext()
+        self._iterations_per_epoch = list()
 
     def __call__(self, engine):
+        """Store the desired objects in the ctx object of the monitor for later
+        finalization"""
         raise NotImplementedError
+
+    def finalize(self, engine):
+        """Finalize each object by calling add_value, possibly using the ctx
+        object's list of recorded objects"""
+        raise NotImplementedError
+
+    def get_epochs(self):
+        """Returns a 1d array with the epoch numbers"""
+        return np.arange(1, len(self._iterations_per_epoch) + 1)
+
+    def get_iterations(self):
+        """Returns an array of arrays (possibly a 2d array) with the iteration
+        numbers"""
+        return np.array(
+            [
+                np.arange(1, num_iters + 1)
+                for num_iters in self._iterations_per_epoch
+            ]
+        )
 
     def summarize(self):
         return "No Monitor Summary Given"
 
     def attach(self, engine):
         engine.add_event_handler(Events.EPOCH_STARTED, self.new_epoch)
+        engine.add_event_handler(Events.EPOCH_COMPLETED, self.end_epoch)
         engine.add_event_handler(Events.ITERATION_STARTED, self.new_iteration)
         engine.add_event_handler(Events.ITERATION_COMPLETED, self.__call__)
 
-        def new_epoch(self, engine):
-            super().new_epoch(engine)
-            last_epoch = (
-                self.get("epoch", -2) if len(self.get("epoch")) > 1 else 0
-            )
-            self.set("epoch", last_epoch + 1)
-
     def new_epoch(self, engine):
         for key in self._all_keys:
-            if self._should_key_average[key]:
-                self._counts[key] = 0
-                getattr(self, key).append(None)
-            else:
-                getattr(self, key).append(list())
-        # We have to do this this way because the evaluation engines always have epoch=1
-        self.set("epoch", self._last_epoch + 1)
-        self._last_epoch += 1
+            # reset the temporary list
+            setattr(self, self._get_temp_attr_key(key), list())
+        self._iterations_per_epoch.append(0)
 
     def new_iteration(self, engine):
-        self.set("iteration", self._last_iteration + 1)
-        self._last_iteration += 1
+        self._iterations_per_epoch[-1] += 1
 
-    def add(self, key, average=False):
+    def end_epoch(self, engine):
+        self.finalize(engine)
+        # Reset the monitor context so that we don't end up checkpointing it
+        self.ctx = MonitorContext()
+
+    def add_key(self, key, mean=False, std=False, percentiles=None):
+        """Configure a new key to be monitored
+
+        :param key: a string for the key name
+        :param mean: whether to record the mean of the values
+        :param std: whether to record the standard deviation of the values
+        :param percentiles: a list of what percentiles to record. If not given,
+            then no percentiles will be recorded
+        """
         if hasattr(self, key):
             print(f"Warning! Monitor already has key {key}")
         else:
             self._all_keys.append(key)
-        setattr(self, key, list())
-        self._should_key_average[key] = average
+            setattr(self, key, list())
 
-    def set(self, key, value):
-        if not hasattr(self, key):
+    def add_value(self, key, value):
+        """Adds a new value to the key
+
+        :param key: key to add a new value for
+        :param value: new value to be added
+        """
+        if key not in self._all_keys:
             raise AttributeError(
                 f"Error! Monitor cannot set nonexistent attribute {key}"
             )
-        if self._should_key_average[key]:
-            if self._counts[key] == 0:
-                getattr(self, key)[-1] = value
-            else:
-                old_value = self.get(key, -1)
-                new_value = (old_value * self._counts[key] + value) / (
-                    self._counts[key] + 1
-                )
-                getattr(self, key)[-1] = new_value
-            self._counts[key] += 1
-        else:
-            getattr(self, key)[-1].append(value)
+        # append the value to the temporary list
+        getattr(self, key).append(value)
 
-    def get(self, key, idxs=None):
-        if idxs is None:
-            return getattr(self, key)
+    def __getattr__(self, key):
+        # This catches the cases of trying to retrieve epoch/epochs or
+        # iteration/iterations
+        if key == "epochs" or key == "epoch":
+            return self.get_epochs()
+        elif key == "iterations" or key == "iteration":
+            return self.get_iterations()
         else:
-            return getattr(self, key)[idxs]
+            raise AttributeError(f"Monitor does not have key {key}")
 
     def keys(self):
+        """Returns an iterable over the keys of this monitor"""
         return iter(self._all_keys)
 
     def values(self):
-        return iter(self.get(key) for key in self._all_keys)
+        """Returns an iterable over the value of this monitor"""
+        return iter(getattr(self, key) for key in self._all_keys)
 
     def items(self):
-        return iter((key, self.get(key)) for key in self._all_keys)
+        """Returns an iterable over the key-value pairs of this monitor"""
+        return iter((key, getattr(self, key)) for key in self._all_keys)
 
     def __iter__(self):
         return self.keys()

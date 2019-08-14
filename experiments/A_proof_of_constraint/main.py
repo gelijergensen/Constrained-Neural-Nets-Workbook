@@ -146,10 +146,14 @@ def run_experiment(
     # Setup Monitors and Checkpoints
     training_monitor = ProofOfConstraintMonitor()
     evaluation_train_monitor = (
-        ProofOfConstraintMonitor() if evaluate_training else None
+        ProofOfConstraintMonitor(is_evaluation=True)
+        if evaluate_training
+        else None
     )
     evaluation_test_monitor = (
-        ProofOfConstraintMonitor() if evaluate_testing else None
+        ProofOfConstraintMonitor(is_evaluation=True)
+        if evaluate_testing
+        else None
     )
     if should_checkpoint:
         checkpointer = ModelAndMonitorCheckpointer(

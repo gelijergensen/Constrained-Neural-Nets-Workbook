@@ -1,4 +1,5 @@
 from ignite.engine import Events, create_supervised_trainer
+import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import optim
@@ -16,14 +17,18 @@ class Mnist_Logistic(nn.Module):
         return self.lin(xb)
 
 
-class EpochMonitor(Monitor):
+class DummyMonitor(Monitor):
     def __init__(self):
         super().__init__()
-
         # epoch is now automatically retrieved
 
+        self.add_key("dummy")
+
     def __call__(self, engine):
-        pass  # We just want to make sure Epoch is retrieved
+        self.ctx["dummy"].append(self._iterations_per_epoch[-1])
+
+    def finalize(self, engine):
+        self.add_value("dummy", np.array(self.ctx["dummy"]))
 
 
 def test_monitor():
@@ -35,12 +40,12 @@ def test_monitor():
 
     trainer = create_supervised_trainer(model, opt, loss_fn)
 
-    epoch_logger = EpochMonitor()
-    epoch_logger.attach(trainer)
+    monitor = DummyMonitor()
+    monitor.attach(trainer)
 
     num_epochs = 1
     trainer.run(train_dl, max_epochs=num_epochs)
-    assert len(epoch_logger.epoch) == num_epochs
-    assert all([epoch_logger.epoch[i] == i + 1 for i in range(num_epochs)])
-    assert len(list(iter(epoch_logger))) == 2
-    assert next(iter(epoch_logger)) == "epoch"
+    assert len(monitor.epoch) == num_epochs
+    assert all([monitor.epoch[i] == i + 1 for i in range(num_epochs)])
+    assert len(list(iter(monitor))) == 1  # "dummy"
+    assert np.allclose(monitor.dummy, np.array(monitor.iterations))
