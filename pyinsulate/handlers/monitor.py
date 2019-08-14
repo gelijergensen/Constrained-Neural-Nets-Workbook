@@ -4,14 +4,22 @@ from ignite.engine import Events
 import numpy as np
 
 
-class _MonitoredObject(object):
-    """An object which keeps numpy arrays of means, standard deviations, and 
-    possibly also percentiles"""
+class MonitorContext(object):
+    """This object looks like a dict of lists, but it will add new keys at runtime"""
 
     def __init__(self):
-        self.mean = None
-        self.std = None
-        self.percentiles = None
+        self._dictionary = dict()
+
+    def __getitem__(self, item):
+        if item not in self._dictionary:
+            self._dictionary[item] = list()
+        return self._dictionary[item]
+
+    def __str__(self):
+        return str(self._dictionary)
+
+    def __repr__(self):
+        return repr(self._dictionary)
 
 
 class Monitor(object):
@@ -25,15 +33,26 @@ class Monitor(object):
     def _get_temp_attr_key(key):
         return f"_temporary_{key}_"
 
-    def __init__(self):
-        self._all_keys = list()
-        self._record_mean = dict()
-        self._record_std = dict()
-        self._record_percentiles = dict()
+    def __init__(self, is_evaluation=False):
+        """Initializes the monitor only by specifiying whether this is a 
+        training or evaluation monitor
 
+        :param is_evaluation: True if this monitor is an evaluation monitor
+        """
+        self.is_evaluation = is_evaluation
+        self._all_keys = list()
+
+        self.ctx = MonitorContext()
         self._iterations_per_epoch = list()
 
     def __call__(self, engine):
+        """Store the desired objects in the ctx object of the monitor for later
+        finalization"""
+        raise NotImplementedError
+
+    def finalize(self, engine):
+        """Finalize each object by calling add_value, possibly using the ctx
+        object's list of recorded objects"""
         raise NotImplementedError
 
     def get_epochs(self):
@@ -44,7 +63,10 @@ class Monitor(object):
         """Returns an array of arrays (possibly a 2d array) with the iteration
         numbers"""
         return np.array(
-            [np.arange(num_iters) for num_iters in self._iterations_per_epoch]
+            [
+                np.arange(1, num_iters + 1)
+                for num_iters in self._iterations_per_epoch
+            ]
         )
 
     def summarize(self):
@@ -66,30 +88,9 @@ class Monitor(object):
         self._iterations_per_epoch[-1] += 1
 
     def end_epoch(self, engine):
-        for key in self._all_keys:
-            # Extract the desired values
-            value = np.array(getattr(self, self._get_temp_attr_key(key)))
-            if self._record_mean[key]:
-                prev = getattr(self, key).mean
-                new = np.mean(value)
-                if prev is None:
-                    getattr(self, key).mean = new
-                else:
-                    getattr(self, key).mean = np.vstack((prev, new))
-            if self._record_std[key]:
-                prev = getattr(self, key).std
-                new = np.std(value)
-                if prev is None:
-                    getattr(self, key).std = new
-                else:
-                    getattr(self, key).std = np.vstack((prev, new))
-            if self._record_percentiles[key] is not None:
-                prev = getattr(self, key).percentiles
-                new = np.percentile(value, self._record_percentiles[key])
-                if prev is None:
-                    getattr(self, key).percentiles = new
-                else:
-                    getattr(self, key).percentiles = np.vstack((prev, new))
+        self.finalize(engine)
+        # Reset the monitor context so that we don't end up checkpointing it
+        self.ctx = MonitorContext
 
     def add_key(self, key, mean=False, std=False, percentiles=None):
         """Configure a new key to be monitored
@@ -103,14 +104,8 @@ class Monitor(object):
         if hasattr(self, key):
             print(f"Warning! Monitor already has key {key}")
         else:
-            if not mean and not std and percentiles is None:
-                print(f"Warning! Monitor is not set to actually record {key}")
-                print(f"Please specify mean, std, or percentiles")
             self._all_keys.append(key)
-            self._record_mean[key] = mean
-            self._record_std[key] = std
-            self._record_percentiles[key] = percentiles
-            setattr(self, key, _MonitoredObject())
+            setattr(self, key, list())
 
     def add_value(self, key, value):
         """Adds a new value to the key
@@ -123,7 +118,7 @@ class Monitor(object):
                 f"Error! Monitor cannot set nonexistent attribute {key}"
             )
         # append the value to the temporary list
-        getattr(self, self._get_temp_attr_key(key)).append(value)
+        getattr(self, key).append(value)
 
     def __getattr__(self, key):
         # This catches the cases of trying to retrieve epoch/epochs or

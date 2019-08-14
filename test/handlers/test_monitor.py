@@ -22,10 +22,13 @@ class DummyMonitor(Monitor):
         super().__init__()
         # epoch is now automatically retrieved
 
-        self.add_key("dummy", mean=True, std=True, percentiles=[0.0, 100.0])
+        self.add_key("dummy")
 
     def __call__(self, engine):
-        self.add_value("dummy", self._iterations_per_epoch[-1])
+        self.ctx["dummy"].append(self._iterations_per_epoch[-1])
+
+    def finalize(self, engine):
+        self.add_value("dummy", np.array(self.ctx["dummy"]))
 
 
 def test_monitor():
@@ -45,31 +48,4 @@ def test_monitor():
     assert len(monitor.epoch) == num_epochs
     assert all([monitor.epoch[i] == i + 1 for i in range(num_epochs)])
     assert len(list(iter(monitor))) == 1  # "dummy"
-    assert np.allclose(
-        monitor.dummy.mean,
-        np.mean(
-            [
-                np.arange(1, num_iters + 1)
-                for num_iters in monitor._iterations_per_epoch
-            ]
-        ),
-    )
-    assert np.allclose(
-        monitor.dummy.std,
-        np.std(
-            [
-                np.arange(1, num_iters + 1)
-                for num_iters in monitor._iterations_per_epoch
-            ]
-        ),
-    )
-    assert np.allclose(
-        monitor.dummy.percentiles,
-        np.percentile(
-            [
-                np.arange(1, num_iters + 1)
-                for num_iters in monitor._iterations_per_epoch
-            ],
-            np.array([0.0, 100.0]),
-        ),
-    )
+    assert np.allclose(monitor.dummy, np.array(monitor.iterations))
