@@ -14,7 +14,6 @@ class ModelAndMonitorCheckpointer(Checkpointer):
         self.monitors = monitors
 
     def retrieve(self, engine):
-        # retrieve the model and optimizer state dictionaries as well
         return {
             "epoch": engine.state.epoch,
             "configuration": self.configuration,

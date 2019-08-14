@@ -28,22 +28,22 @@ class ProofOfConstraintMonitor(Monitor):
         return summary
 
     def __call__(self, engine):
-        self.set("loss", engine.state.loss.to("cpu").detach())
-        self.set("mean_loss", engine.state.mean_loss.item())
-        self.set("constrained_loss", engine.state.constrained_loss.item())
-        self.set("batch_size", len(engine.state.xb))
-        self.set("constraints", engine.state.constraints.to("cpu").detach())
-        self.set("reduced_constraints", engine.state.reduced_constraints.item())
+        self.set("loss", engine.state.loss.cpu().detach())
+        self.set("mean_loss", engine.state.mean_loss.cpu().item())
+        self.set("constrained_loss", engine.state.constrained_loss.cpu().item())
+        self.set("batch_size", len(engine.state.xb[0]))
+        self.set("constraints", engine.state.constraints.cpu().detach())
+        self.set("reduced_constraints", engine.state.reduced_constraints.cpu())
         self.set(
             "constraints_diagnostics",
-            tuple(x.to("cpu") for x in engine.state.constraints_diagnostics),
+            tuple(x.cpu() for x in engine.state.constraints_diagnostics),
         )
         self.set(
-            "model_parameters", engine.state.model_parameters.to("cpu").detach()
+            "model_parameters", engine.state.model_parameters.cpu().detach()
         )
         grads = engine.state.model_parameters_grad
         if grads is not None:
-            self.set("model_parameters_grad", grads.to("cpu").detach())
+            self.set("model_parameters_grad", grads.cpu().detach())
         else:
-            self.set("model_parameters_grad", grads)
+            self.set("model_parameters_grad", None)
         self.set("timing", engine.state.times.copy())

@@ -33,7 +33,9 @@ def default_configuration():
     model_act: activation function for the model. Defaults to nn.Tanh()
     model_final_act: activation function for last layer. Defaults to None
     learning_rate: learning rate. Defaults to 0.01
+    device: device to run on ("cpu"/"cuda"). Defaults to "cpu"
     method: method to use for constraining. See the event loop for more details
+    constraint: function to use for constraining
     reduction: reduction to use for constraining. See event loop for details
     """
     return {
@@ -58,6 +60,7 @@ def default_configuration():
         "model_act": nn.Tanh(),
         "model_final_act": None,
         "learning_rate": 0.01,
+        "device": "cpu",
         "method": "constrained",
         "constraint": helmholtz_equation,
         "reduction": None,
@@ -84,7 +87,7 @@ def build_model_and_optimizer(configuration):
         sizes=configuration["model_size"],
         activation=configuration["model_act"],
         final_activation=configuration["model_final_act"],
-    )
+    ).to(device=torch.device(configuration["device"]))
     opt = optim.Adam(model.parameters(), lr=configuration["learning_rate"])
     return model, opt
 
@@ -176,6 +179,7 @@ def run_experiment(
         monitor=training_monitor,
         method=kwargs["method"],
         reduction=kwargs["reduction"],
+        device=kwargs["device"],
     )
 
     # These are not trainers simply because we don't provide the optimizer
@@ -187,6 +191,7 @@ def run_experiment(
             monitor=evaluation_train_monitor,
             method=kwargs["method"],
             reduction=kwargs["reduction"],
+            device=kwargs["device"],
         )
     else:
         train_evaluator = None
@@ -198,6 +203,7 @@ def run_experiment(
             monitor=evaluation_test_monitor,
             method=kwargs["method"],
             reduction=kwargs["reduction"],
+            device=kwargs["device"],
         )
     else:
         test_evaluator = None
@@ -245,8 +251,8 @@ def run_experiment(
             log(
                 "Epoch[{}] - Constrained loss: {:.5f}, Loss: {:.5f}".format(
                     trainer.state.epoch,
-                    trainer.state.constrained_loss,
-                    trainer.state.mean_loss,
+                    trainer.state.constrained_loss.cpu().item(),
+                    trainer.state.mean_loss.cpu().item(),
                 )
             )
 
