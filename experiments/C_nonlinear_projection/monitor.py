@@ -7,13 +7,14 @@ from pyinsulate.handlers import Monitor
 
 
 class NonlinearProjectionMonitor(Monitor):
-    def __init__(self, is_evaluation=False):
-        super().__init__(is_evaluation=is_evaluation)
+    def __init__(self, monitor_type="training"):
+        super().__init__()
+        self.monitor_type = monitor_type
 
         # epoch and iteration are recorded automatically
         self.add_key("batch_size")
 
-        if self.is_evaluation:
+        if self.monitor_type == "inference":
             self.add_key("original_out")
             # self.add_key("all_out")
             self.add_key("final_out")
@@ -38,14 +39,15 @@ class NonlinearProjectionMonitor(Monitor):
             self.add_key("constraints_percentiles")
             self.add_key("constraints_abs_percentiles")
             self.add_key("model_parameters_percentiles")
-            self.add_key("model_parameters_grad_percentiles")
+            if self.monitor_type == "training":
+                self.add_key("model_parameters_grad_percentiles")
 
         self.add_key("timing")
         self.timing_keys = None
 
     def summarize(self):
-        if self.is_evaluation:
-            summary = f"Original: (Loss: {self.original_mean_loss[-1]:0.5f}, Constraint error: {self.original_constraints_error[-1]:0.5f}). Final: (Loss: {self.final_mean_loss[-1]:0.5f}, Constraint error: {self.final_constraints_error[-1]:0.5f}"
+        if self.monitor_type == "inference":
+            summary = f"Original: (Loss: {self.original_mean_loss[-1]:0.5f}, Constraint error: {self.original_constraints_error[-1]:0.5f}). Final: (Loss: {self.final_mean_loss[-1]:0.5f}, Constraint error: {self.final_constraints_error[-1]:0.5f})"
         else:
             summary = f"Mean total loss: {self.total_loss[-1]:0.5f}, Mean data loss: {self.mean_loss[-1]:0.5f}, Mean constraint error: {self.constraints_error[-1]:0.5f}"
         return summary
@@ -61,7 +63,7 @@ class NonlinearProjectionMonitor(Monitor):
     def finalize(self, engine):
         self.add_value("batch_size", np.array(self.ctx["batch_size"]))
 
-        if self.is_evaluation:
+        if self.monitor_type == "inference":
             self.add_value(
                 "original_out", torch.cat(self.ctx["original_out"], dim=0)
             )
@@ -185,15 +187,16 @@ class NonlinearProjectionMonitor(Monitor):
                     np.linspace(0, 100, num=101),
                 ),
             )
-            self.add_value(
-                "model_parameters_grad_percentiles",
-                np.percentile(
-                    torch.stack(
-                        self.ctx["model_parameters_grad"], dim=0
-                    ).numpy(),
-                    np.linspace(0, 100, num=101),
-                ),
-            )
+            if self.monitor_type == "training":
+                self.add_value(
+                    "model_parameters_grad_percentiles",
+                    np.percentile(
+                        torch.stack(
+                            self.ctx["model_parameters_grad"], dim=0
+                        ).numpy(),
+                        np.linspace(0, 100, num=101),
+                    ),
+                )
 
         # only the items with full batches
         timing_mask = (
@@ -216,7 +219,7 @@ class NonlinearProjectionMonitor(Monitor):
     def __call__(self, engine):
         self.ctx["batch_size"].append(len(self.get_tensor(engine.state.xb[0])))
 
-        if self.is_evaluation:
+        if self.monitor_type == "inference":
             self.ctx["original_out"].append(
                 self.get_tensor(engine.state.original_out)
             )
@@ -263,9 +266,10 @@ class NonlinearProjectionMonitor(Monitor):
             self.ctx["model_parameters"].append(
                 self.get_tensor(engine.state.model_parameters)
             )
-            self.ctx["model_parameters_grad"].append(
-                self.get_tensor(engine.state.model_parameters_grad)
-            )
+            if self.monitor_type == "training":
+                self.ctx["model_parameters_grad"].append(
+                    self.get_tensor(engine.state.model_parameters_grad)
+                )
 
         self.ctx["timing"].append(engine.state.times.copy())
         if self.timing_keys is None:

@@ -33,13 +33,7 @@ class Monitor(object):
     def _get_temp_attr_key(key):
         return f"_temporary_{key}_"
 
-    def __init__(self, is_evaluation=False):
-        """Initializes the monitor only by specifiying whether this is a 
-        training or evaluation monitor
-
-        :param is_evaluation: True if this monitor is an evaluation monitor
-        """
-        self.is_evaluation = is_evaluation
+    def __init__(self):
         self._all_keys = list()
 
         self.ctx = MonitorContext()

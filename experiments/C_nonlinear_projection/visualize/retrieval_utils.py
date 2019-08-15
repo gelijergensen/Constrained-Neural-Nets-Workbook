@@ -18,7 +18,7 @@ def retrieve_object(monitor, object_string, **kwargs):
         (num_epochs,). Otherwise has shape (num_epochs, num_batchs_per_epoch)
     """
     if object_string in ["mean_loss", "constraints_error"]:
-        data = retrieve_plain(monitor, object_string)
+        data = retrieve_plain(monitor, object_string, **kwargs)
     elif object_string in ["total_loss"]:
         data = retrieve_total_loss(monitor)
     elif object_string == "loss":

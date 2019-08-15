@@ -109,8 +109,8 @@ def get_loss_and_constraint(configuration):
 def run_experiment(
     max_epochs,
     log=None,
-    evaluate_training=True,
-    evaluate_testing=True,
+    evaluate=True,
+    inference=True,
     save_directory=".",
     save_file=None,
     save_interval=1,
@@ -120,12 +120,10 @@ def run_experiment(
 
     :param max_epochs: number of epochs to run the experiment
     :param log: function to use for logging. None supresses logging
-    :param evaluate_training: whether to run the evaluator once over the 
-        training data at the end of an epoch. Will be overridden if 
-        evaluation_train_monitor is provided
-    :param evaluate_testing: whether to run the evaluator once over the 
-        testing data at the end of an epoch. Will be overridden if
-        evaluation_test_monitor is provided
+    :param evaluate: whether to run the evaluator once over the 
+        training data at the end of an epoch
+    :param inference: whether to run the inference engine once over the 
+        testing data at the end of an epoch
     :param save_directory: optional directory to save checkpoints into. Defaults
         to the directory that the main script was called from
     :param save_file: base filename for checkpointing. If not provided, then no
@@ -150,27 +148,19 @@ def run_experiment(
     train_dl, test_dl = get_data(kwargs)
 
     # Setup Monitors and Checkpoints
-    training_monitor = NonlinearProjectionMonitor()
-    evaluation_train_monitor = (
-        NonlinearProjectionMonitor(is_evaluation=True)
-        if evaluate_training
-        else None
+    training_monitor = NonlinearProjectionMonitor("training")
+    evaluation_monitor = (
+        NonlinearProjectionMonitor("evaluation") if evaluate else None
     )
-    evaluation_test_monitor = (
-        NonlinearProjectionMonitor(is_evaluation=True)
-        if evaluate_testing
-        else None
+    inference_monitor = (
+        NonlinearProjectionMonitor("inference") if inference else None
     )
     if should_checkpoint:
         checkpointer = ModelAndMonitorCheckpointer(
             save_directory,
             save_file,
             kwargs,
-            [
-                training_monitor,
-                evaluation_train_monitor,
-                evaluation_test_monitor,
-            ],
+            [training_monitor, evaluation_monitor, inference_monitor],
             save_interval=save_interval,
         )
     else:
@@ -196,14 +186,14 @@ def run_experiment(
     )
 
     # These are not trainers simply because we don't provide the optimizer
-    if evaluate_training:
-        train_evaluator = create_engine(
+    if evaluate:
+        evaluator = create_engine(
             model,
             loss,
             constraint,
-            opt,
-            inference=True,
-            monitor=evaluation_train_monitor,
+            optimizer=None,
+            inference=False,
+            monitor=evaluation_monitor,
             regularization_weight=kwargs["regularization_weight"],
             error_fn=kwargs["error_fn"],
             device=kwargs["device"],
@@ -211,15 +201,15 @@ def run_experiment(
             max_iterations=kwargs["max_iterations"],
         )
     else:
-        train_evaluator = None
-    if evaluate_testing:
-        test_evaluator = create_engine(
+        evaluator = None
+    if inference:
+        inferencer = create_engine(
             model,
             loss,
             constraint,
             opt,
             inference=True,
-            monitor=evaluation_test_monitor,
+            monitor=inference_monitor,
             regularization_weight=kwargs["regularization_weight"],
             error_fn=kwargs["error_fn"],
             device=kwargs["device"],
@@ -227,7 +217,7 @@ def run_experiment(
             max_iterations=kwargs["max_iterations"],
         )
     else:
-        test_evaluator = None
+        inferencer = None
 
     # Ensure evaluation happens once per epoch
     @trainer.on(Events.EPOCH_COMPLETED)
@@ -236,26 +226,26 @@ def run_experiment(
             summary = training_monitor.summarize()
             log(f"Epoch[{trainer.state.epoch}] Training Summary - {summary}")
 
-        if evaluate_training:
+        if evaluate:
             if should_log:
                 log(
                     f"Epoch[{trainer.state.epoch}] - Evaluating on training data..."
                 )
-            train_evaluator.run(train_dl)
-            if evaluation_train_monitor is not None and should_log:
-                summary = evaluation_train_monitor.summarize()
+            evaluator.run(train_dl)
+            if evaluation_monitor is not None and should_log:
+                summary = evaluation_monitor.summarize()
                 log(
                     f"Epoch[{trainer.state.epoch}] Evaluation Summary - {summary}"
                 )
 
-        if evaluate_testing:
+        if inference:
             if should_log:
                 log(
                     f"Epoch[{trainer.state.epoch}] - Evaluating on testing data..."
                 )
-            test_evaluator.run(test_dl)
-            if evaluation_test_monitor is not None and should_log:
-                summary = evaluation_test_monitor.summarize()
+            inferencer.run(test_dl)
+            if inference_monitor is not None and should_log:
+                summary = inference_monitor.summarize()
                 log(
                     f"Epoch[{trainer.state.epoch}] Generalization Summary - {summary}"
                 )
@@ -284,7 +274,7 @@ def run_experiment(
 
     return (
         kwargs,
-        (trainer, train_evaluator, test_evaluator),
-        (training_monitor, evaluation_train_monitor, evaluation_test_monitor),
+        (trainer, evaluator, inferencer),
+        (training_monitor, evaluation_monitor, inference_monitor),
     )
 

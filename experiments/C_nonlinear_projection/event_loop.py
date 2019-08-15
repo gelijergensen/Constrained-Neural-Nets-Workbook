@@ -1,7 +1,7 @@
 """The functions which perform the actual training and inference of a model,
 given some possible configurations"""
 
-
+from copy import deepcopy
 from enum import Enum
 from ignite.engine import Engine, Events
 from ignite.utils import convert_tensor
@@ -85,8 +85,11 @@ class TrainingLoop(object):
 
         iteration_start = perf_counter()
         section_start = iteration_start
-        self.model.train()
-        self.optimizer.zero_grad()
+        if self.optimizer is not None:
+            self.model.train()
+            self.optimizer.zero_grad()
+        else:
+            self.model.eval()
         engine.state.xb, engine.state.yb = prepare_batch(
             batch, device=self.device
         )
@@ -151,25 +154,30 @@ class TrainingLoop(object):
             .clone()
             .detach()
         )
-        # backwards...
-        engine.state.total_loss.backward()
-        # attach the gradients
-        engine.state.model_parameters_grad = torch.cat(
-            [param.grad.view(-1) for param in self.model.parameters()], dim=-1
-        )
-        # ...and step
-        self.optimizer.step()
+        if self.optimizer is not None:
+            # backwards...
+            engine.state.total_loss.backward()
+            # attach the gradients
+            engine.state.model_parameters_grad = torch.cat(
+                [param.grad.view(-1) for param in self.model.parameters()],
+                dim=-1,
+            )
+            # ...and step
+            self.optimizer.step()
+            engine.state.optimizer_state_dict = self.optimizer.state_dict()
+            section_start = end_section(
+                engine, Sub_Batch_Events.OPTIMIZER_STEPPED, section_start
+            )
+        else:
+            engine.state.model_parameters_grad = None
+            engine.state.optimizer_state_dict = None
         engine.state.model_state_dict = self.model.state_dict()
-        engine.state.optimizer_state_dict = self.optimizer.state_dict()
-        section_start = end_section(
-            engine, Sub_Batch_Events.OPTIMIZER_STEPPED, section_start
-        )
 
         engine.state.times["total"] = perf_counter() - iteration_start
         return engine.state.xb, engine.state.yb, engine.state.out
 
 
-class EvaluationLoop(object):
+class InferenceLoop(object):
     @staticmethod
     def mean_squared_error(constraints):
         return torch.mean(constraints * constraints)
@@ -198,8 +206,11 @@ class EvaluationLoop(object):
         self.tolerance = tolerance
         self.max_iters = max_iterations
 
-        # Used to restore model (copy is really important here!)
-        self.original_model_state_dict = self.model.state_dict().copy()
+        # Used to restore model (both are important here)
+        self.original_model_state_dict = deepcopy(self.model.state_dict())
+        self.original_opt_state_dict = deepcopy(
+            self.optimizer.state_dict().copy()
+        )
         # Just used for diagnostics
         self.original_model_parameters = (
             torch.cat(
@@ -328,6 +339,7 @@ class EvaluationLoop(object):
         )
         # Clean up
         self.model.load_state_dict(self.original_model_state_dict)
+        self.optimizer.load_state_dict(self.original_opt_state_dict)
 
         engine.state.times["total"] = perf_counter() - iteration_start
         return engine.state.xb, engine.state.yb, engine.state.out
@@ -337,7 +349,7 @@ def create_engine(
     model,
     loss_fn,
     constraint_fn,
-    optimizer,
+    optimizer=None,
     inference=False,
     monitor=None,
     guard=True,
@@ -374,7 +386,7 @@ def create_engine(
     """
 
     if inference:
-        iteration_fn = EvaluationLoop(
+        iteration_fn = InferenceLoop(
             model,
             loss_fn,
             constraint_fn,

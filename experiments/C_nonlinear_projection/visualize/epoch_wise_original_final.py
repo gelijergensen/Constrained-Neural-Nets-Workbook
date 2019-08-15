@@ -65,7 +65,7 @@ def _plot_object_original_final(
 
             if color is None:
                 line2d = plt.plot(
-                    monitor.epoch, data, "-", label=f"{label}{suffix}"
+                    monitor.epoch, data, line_style, label=f"{label}{suffix}"
                 )
                 color = line2d[0].get_color()
             else:
