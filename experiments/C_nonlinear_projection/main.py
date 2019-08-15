@@ -234,9 +234,7 @@ def run_experiment(
     def run_evaluation(trainer):
         if training_monitor is not None and should_log:
             summary = training_monitor.summarize()
-            log(
-                f"Epoch[{trainer.state.epoch}] Training (Training) Summary - {summary}"
-            )
+            log(f"Epoch[{trainer.state.epoch}] Training Summary - {summary}")
 
         if evaluate_training:
             if should_log:
@@ -247,7 +245,7 @@ def run_experiment(
             if evaluation_train_monitor is not None and should_log:
                 summary = evaluation_train_monitor.summarize()
                 log(
-                    f"Epoch[{trainer.state.epoch}] Evaluation (Training) Summary - {summary}"
+                    f"Epoch[{trainer.state.epoch}] Evaluation Summary - {summary}"
                 )
 
         if evaluate_testing:
@@ -259,7 +257,7 @@ def run_experiment(
             if evaluation_test_monitor is not None and should_log:
                 summary = evaluation_test_monitor.summarize()
                 log(
-                    f"Epoch[{trainer.state.epoch}] Evaluation (Testing) Summary  - {summary}"
+                    f"Epoch[{trainer.state.epoch}] Generalization Summary - {summary}"
                 )
 
         if should_checkpoint:
@@ -270,10 +268,11 @@ def run_experiment(
         @trainer.on(Events.ITERATION_COMPLETED)
         def log_batch_summary(trainer):
             log(
-                "Epoch[{}] - Constrained loss: {:.5f}, Loss: {:.5f}".format(
+                "Epoch[{}] - Total loss: {:.5f}, Data Loss: {:.5f}, Constraint Error: {:.5f}".format(
                     trainer.state.epoch,
-                    trainer.state.constrained_loss.cpu().item(),
+                    trainer.state.total_loss.cpu().item(),
                     trainer.state.mean_loss.cpu().item(),
+                    trainer.state.constraints_error.cpu().item(),
                 )
             )
 

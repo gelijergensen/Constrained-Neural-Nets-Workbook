@@ -44,9 +44,10 @@ class NonlinearProjectionMonitor(Monitor):
         self.timing_keys = None
 
     def summarize(self):
-        mean_loss = np.mean(self.mean_loss[-1])
-        mean_constrained_loss = np.mean(self.constrained_loss[-1])
-        summary = f"Mean constrained loss: {mean_constrained_loss:0.5f}, Mean loss: {mean_loss:0.5f}"
+        if self.is_evaluation:
+            summary = f"Original: (Loss: {self.original_mean_loss[-1]:0.5f}, Constraint error: {self.original_constraints_error[-1]:0.5f}). Final: (Loss: {self.final_mean_loss[-1]:0.5f}, Constraint error: {self.final_constraints_error[-1]:0.5f}"
+        else:
+            summary = f"Mean total loss: {self.total_loss[-1]:0.5f}, Mean data loss: {self.mean_loss[-1]:0.5f}, Mean constraint error: {self.constraints_error[-1]:0.5f}"
         return summary
 
     @staticmethod
