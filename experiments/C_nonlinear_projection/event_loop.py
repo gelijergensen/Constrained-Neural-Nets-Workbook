@@ -198,8 +198,8 @@ class EvaluationLoop(object):
         self.tolerance = tolerance
         self.max_iters = max_iterations
 
-        # Used to restore model
-        self.original_model_state_dict = self.model.state_dict()
+        # Used to restore model (copy is really important here!)
+        self.original_model_state_dict = self.model.state_dict().copy()
         # Just used for diagnostics
         self.original_model_parameters = (
             torch.cat(

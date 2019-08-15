@@ -199,6 +199,7 @@ def plot_parameters_distribution(
     labels,
     savefile,
     gradients=False,
+    differences=False,
     title="Parameters",
     ylabel="Parameter values",
     log=False,
@@ -210,6 +211,8 @@ def plot_parameters_distribution(
     :param labels: a list of strings for the label of each monitor
     :param savefile: name of the file to save. If none, then will not save
     :param gradients: whether to plot the gradients of the parameters
+    :param differences: if this is a list of evaluation monitors, retrieve the
+        parameter differences during inference
     :param title: title of the figure
     :param ylabel: label for the y-axis
     :param log: whether to plot a log-plot. Can also be set to "symlog"
@@ -222,7 +225,7 @@ def plot_parameters_distribution(
         labels,
         savefile,
         object_string,
-        retrieval_kwargs={"gradients": gradients},
+        retrieval_kwargs={"gradients": gradients, "differences": differences},
         title=title,
         ylabel=ylabel,
         log=log,

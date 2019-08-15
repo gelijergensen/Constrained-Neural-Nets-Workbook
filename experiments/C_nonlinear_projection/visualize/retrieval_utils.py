@@ -89,7 +89,7 @@ def retrieve_constraint(monitor, absolute_value=False, original=True):
             true_object_string = f"final_{object_string}"
     else:
         true_object_string = object_string
-    
+
     return getattr(monitor, true_object_string)
 
 
@@ -105,20 +105,30 @@ def retrieve_loss(monitor, absolute_value=False):
     else:
         return monitor.constraints_percentiles
 
-def retrieve_parameters(monitor, gradients=False):
+
+def retrieve_parameters(monitor, gradients=False, differences=False):
     """Retrieves the parameters of the model or their gradients
 
     :param monitor: either a training or evaluation monitor
     :param gradients: whether to retrieve the gradients instead of the values
+    :param differences: whether to retrieve the differences in parameters from
+        original to final
     :returns: the values of the parameters (or gradients) for each batch and 
         epoch
     """
-    if gradients:
-        data = monitor.model_parameters_grad_percentiles
-        if data[0][0] is None:
-            raise AttributeError("Parameters do not have gradients")
+    if monitor.is_evaluation and differences:
+        data = monitor.model_parameter_differences_percentiles
+    elif not monitor.is_evaluation:
+        if gradients:
+            data = monitor.model_parameters_grad_percentiles
+            if data[0][0] is None:
+                raise AttributeError("Parameters do not have gradients")
+        else:
+            data = monitor.model_parameters_percentiles
     else:
-        data = monitor.model_parameters_percentiles
+        raise ValueError(
+            "Monitor is evaluation, but differences was not requested"
+        )
 
     return data
 
