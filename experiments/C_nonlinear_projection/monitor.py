@@ -15,8 +15,11 @@ class NonlinearProjectionMonitor(Monitor):
         self.add_key("batch_size")
 
         if self.monitor_type == "inference":
+            self.inputs = None
+            self.outputs = None
+            self.recorded_inputs = False
             self.add_key("original_out")
-            # self.add_key("all_out")
+            self.add_key("all_out")
             self.add_key("final_out")
             self.add_key("original_mean_loss")
             # self.add_key("all_mean_loss")
@@ -64,10 +67,27 @@ class NonlinearProjectionMonitor(Monitor):
         self.add_value("batch_size", np.array(self.ctx["batch_size"]))
 
         if self.monitor_type == "inference":
+            if not self.recorded_inputs:
+                self.inputs = torch.cat(self.ctx["inputs"], dim=0).numpy()
+                self.outputs = torch.cat(self.ctx["outputs"], dim=0).numpy()
+                self.recorded_inputs = True
+
             self.add_value(
-                "original_out", torch.cat(self.ctx["original_out"], dim=0)
+                "original_out",
+                torch.cat(self.ctx["original_out"], dim=0).numpy(),
             )
-            self.add_value("final_out", torch.cat(self.ctx["final_out"], dim=0))
+            self.add_value(
+                "all_out",
+                [
+                    torch.cat(
+                        [x[i] for x in self.ctx["all_out"]], dim=0
+                    ).numpy()
+                    for i in range(len(self.ctx["all_out"][0]))
+                ],
+            )
+            self.add_value(
+                "final_out", torch.cat(self.ctx["final_out"], dim=0).numpy()
+            )
             self.add_value(
                 "original_mean_loss",
                 np.average(
@@ -220,8 +240,14 @@ class NonlinearProjectionMonitor(Monitor):
         self.ctx["batch_size"].append(len(self.get_tensor(engine.state.xb[0])))
 
         if self.monitor_type == "inference":
+            if not self.recorded_inputs:
+                self.ctx["inputs"].append(self.get_tensor(engine.state.xb[0]))
+                self.ctx["outputs"].append(self.get_tensor(engine.state.yb))
             self.ctx["original_out"].append(
                 self.get_tensor(engine.state.original_out)
+            )
+            self.ctx["all_out"].append(
+                [self.get_tensor(x) for x in engine.state.all_out]
             )
             self.ctx["final_out"].append(
                 self.get_tensor(engine.state.final_out)

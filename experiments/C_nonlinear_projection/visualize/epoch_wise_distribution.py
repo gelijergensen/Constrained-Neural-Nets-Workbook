@@ -8,20 +8,15 @@ from .readability_utils import _clean_label, _correct_and_clean_labels
 from .retrieval_utils import retrieve_object
 
 
-__all__ = [
-    "plot_loss_distribution",
-    "plot_constraints_distribution",
-    "plot_parameters_distribution",
-]
+__all__ = ["plot_epoch_wise_distribution"]
 
 
-def _plot_object_distribution(
+def plot_epoch_wise_distribution(
     monitors,
     labels,
+    data,
     savefile,
-    object_string,
-    retrieval_kwargs=dict(),
-    plot_iterations=False,
+    colors=None,
     title=None,
     ylabel=None,
     log=False,
@@ -33,77 +28,85 @@ def _plot_object_distribution(
     :param monitors: a list of pairs of monitors [(training, evaluation)].
         Elements of the pair can be set to None to be skipped
     :param labels: a list of strings for the label of each monitor
+    :param data: a list of 2d numpy arrays, where the first dimension is by
+        epochs and the second is different percentiles
     :param savefile: name of the file to save. If none, then will not save
-    :param object_string: string for the object to retreive. See 
-        retrieval_utils.retrieve_object for more details
-    :param retrieval_kwargs: dictionary of any necessary kwargs for the 
-        retrieval process. See retrieval_utils.retrieve_object for more details
-    :param plot_iterations: whether to plot by iteration, rather than by epoch.
-        Will assume the data is of shape (epoch, batch, ...) and flatten to
-        (total_iterations, ...)
-    :param title: title of the figure. Defaults to a cleaned version of the
-        object string
-    :param ylabel: label for the y-axis. Defaults to a cleaned version of 
-        f"Average {object_string}"
+    :param colors: a list of colors or None. If a sorted list of integers is 
+        given, then it is interpreted as identities for colors
+    :param title: title of the figure. Defaults to "Untitled"
+    :param ylabel: label for the y-axis. Defaults to "Unspecified"
     :param log: whether to plot a log-plot. Can also be set to "symlog"
     :param directory: directory to save the file in. Defaults to the results dir
     :returns: the figure
     """
+    stashed_colors = list()
+    if colors is None:
+        colors = [None for _ in monitors]
     clean_labels = _correct_and_clean_labels(labels)
-
     if title is None:
-        title = _clean_label(object_string)
+        title = "Untitled"
     if ylabel is None:
-        ylabel = f"Average {_clean_label(object_string)}"
+        ylabel = "Unspecified"
 
     fig = plt.figure()
-    for i, (monitor_set, label) in enumerate(zip(monitors, clean_labels)):
-
-        if len(monitor_set) == 1:
-            suffixes = [""]
-        elif len(monitor_set) == 2:
-            suffixes = [" (Training)", " (Evaluation)"]
-        else:
-            suffixes = ["SET SUFFIXES!" for monitor in monitor_set]
-
-        for monitor, suffix in zip(monitor_set, suffixes):
-            if monitor is None:
-                continue
-            percentiles = np.array(
-                retrieve_object(monitor, object_string, **retrieval_kwargs)
-            )
-            if plot_iterations:
-                # flatten the batch axis into the epoch axis
-                percentiles = percentiles.reshape(-1, percentiles.shape[2:])
-                xvalues = np.array(monitor.iteration).ravel()
-            else:
-                xvalues = np.array(monitor.epoch)
-            midpoint = int((percentiles.shape[1] - 1) / 2)
+    for monitor, label, datum, color in zip(
+        monitors, clean_labels, data, colors
+    ):
+        percentiles = np.array(datum)
+        xvalues = np.array(monitor.epoch)
+        midpoint = int((percentiles.shape[1] - 1) / 2)
+        if color is None:
             line2d = plt.plot(
+                xvalues, percentiles[:, midpoint], "-", label=label, zorder=10
+            )
+            color = line2d[0].get_color()
+        elif isinstance(color, int):
+            if len(stashed_colors) > color:
+                color = stashed_colors[color]
+                plt.plot(
+                    xvalues,
+                    percentiles[:, midpoint],
+                    "-",
+                    label=label,
+                    color=color,
+                    zorder=10,
+                )
+            else:
+                line2d = plt.plot(
+                    xvalues,
+                    percentiles[:, midpoint],
+                    "-",
+                    label=label,
+                    zorder=10,
+                )
+                color = line2d[0].get_color()
+                stashed_colors.append(color)
+        else:
+            plt.plot(
                 xvalues,
                 percentiles[:, midpoint],
                 "-",
-                label=f"{label}{suffix}",
+                label=label,
+                color=color,
                 zorder=10,
             )
-            color = line2d[0].get_color()
 
-            for i in range(midpoint):
-                plt.fill_between(
-                    xvalues,
-                    percentiles[:, i],
-                    percentiles[:, -i - 1],
-                    color=color,
-                    alpha=(
-                        5.0 / (percentiles.shape[1] - 1)
-                    ),  # This requires >5 percentiles!
-                    zorder=0,
-                )
-            plt.plot(xvalues, percentiles[:, 0], ":", color=color, zorder=10)
-            plt.plot(xvalues, percentiles[:, -1], ":", color=color, zorder=10)
+        for i in range(midpoint):
+            plt.fill_between(
+                xvalues,
+                percentiles[:, i],
+                percentiles[:, -i - 1],
+                color=color,
+                alpha=(
+                    5.0 / (percentiles.shape[1] - 1)
+                ),  # This requires >5 percentiles!
+                zorder=0,
+            )
+        plt.plot(xvalues, percentiles[:, 0], ":", color=color, zorder=10)
+        plt.plot(xvalues, percentiles[:, -1], ":", color=color, zorder=10)
     plt.title(title)
     plt.ylabel(ylabel)
-    plt.xlabel("Iteration" if plot_iterations else "Epoch")
+    plt.xlabel("Epoch")
     l = plt.legend()
     l.set_zorder(20)
 
@@ -118,116 +121,6 @@ def _plot_object_distribution(
 
     if savefile is not None:
         filepath = f"{directory}/{savefile}.png"
-        print(f"Saving {object_string} distribution plot to {filepath}")
+        print(f"Saving {title} distribution plot to {filepath}")
         plt.savefig(filepath, dpi=300)
     return fig
-
-
-def plot_loss_distribution(
-    monitors,
-    labels,
-    savefile,
-    absolute_value=False,
-    title="Losses",
-    ylabel="Loss value",
-    log=False,
-    directory=DEFAULT_DIRECTORY,
-):
-    """Plots the distribution of the loss over the epoch
-
-    :param monitors: a list of monitors, e.g. [training, evaluation]
-    :param labels: a list of strings for the label of each monitor
-    :param savefile: name of the file to save. If none, then will not save
-    :param absolute_value: whether to plot the absolute value of the constraints
-    :param title: title of the figure
-    :param ylabel: label for the y-axis
-    :param log: whether to plot a log-plot. Can also be set to "symlog"
-    :param directory: directory to save the file in. Defaults to the results dir
-    :returns: the figure
-    """
-    object_string = "loss"
-    return _plot_object_distribution(
-        monitors,
-        labels,
-        savefile,
-        object_string,
-        title=title,
-        ylabel=ylabel,
-        log=log,
-        directory=directory,
-    )
-
-
-def plot_constraints_distribution(
-    monitors,
-    labels,
-    savefile,
-    absolute_value=False,
-    title="Constraint",
-    ylabel="Constraint value",
-    log=False,
-    directory=DEFAULT_DIRECTORY,
-):
-    """Plots the distribution of the constraints
-
-    :param monitors: a list of monitors, e.g. [training, evaluation]
-    :param labels: a list of strings for the label of each monitor
-    :param savefile: name of the file to save. If none, then will not save
-    :param absolute_value: whether to plot the absolute value of the constraints
-    :param title: title of the figure
-    :param ylabel: label for the y-axis
-    :param log: whether to plot a log-plot. Can also be set to "symlog"
-    :param directory: directory to save the file in. Defaults to the results dir
-    :returns: the figure
-    """
-    object_string = "constraints"
-    return _plot_object_distribution(
-        monitors,
-        labels,
-        savefile,
-        object_string,
-        retrieval_kwargs={"absolute_value": absolute_value},
-        title=title,
-        ylabel=ylabel,
-        log=log,
-        directory=directory,
-    )
-
-
-def plot_parameters_distribution(
-    monitors,
-    labels,
-    savefile,
-    gradients=False,
-    differences=False,
-    title="Parameters",
-    ylabel="Parameter values",
-    log=False,
-    directory=DEFAULT_DIRECTORY,
-):
-    """Plots the distribution of the constraints
-
-    :param monitors: a list of monitors, e.g. [training, evaluation]
-    :param labels: a list of strings for the label of each monitor
-    :param savefile: name of the file to save. If none, then will not save
-    :param gradients: whether to plot the gradients of the parameters
-    :param differences: if this is a list of evaluation monitors, retrieve the
-        parameter differences during inference
-    :param title: title of the figure
-    :param ylabel: label for the y-axis
-    :param log: whether to plot a log-plot. Can also be set to "symlog"
-    :param directory: directory to save the file in. Defaults to the results dir
-    :returns: the figure
-    """
-    object_string = "model_parameters"
-    return _plot_object_distribution(
-        monitors,
-        labels,
-        savefile,
-        object_string,
-        retrieval_kwargs={"gradients": gradients, "differences": differences},
-        title=title,
-        ylabel=ylabel,
-        log=log,
-        directory=directory,
-    )

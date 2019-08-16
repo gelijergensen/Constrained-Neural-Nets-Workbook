@@ -7,81 +7,65 @@ from .readability_utils import _clean_label, _correct_and_clean_labels
 from .retrieval_utils import retrieve_object
 
 
-__all__ = [
-    "plot_loss",
-    "plot_constraints_error",
-]  # , "plot_constraints", "plot_constraints_diagnostics"]
+__all__ = ["plot_epoch_wise"]
 
 
-def _plot_object(
+def plot_epoch_wise(
     monitors,
     labels,
+    data,
     savefile,
-    object_string,
-    retrieval_kwargs=dict(),
+    colors=None,
+    line_styles=None,
     title=None,
     ylabel=None,
     log=False,
     directory=DEFAULT_DIRECTORY,
 ):
-    """Plots several curves for each monitor for the given object string
+    """Plots the data epoch-wise for each monitor
 
-    :param monitors: a list of pairs of monitors [(training, evaluation)].
-        Elements of the pair can be set to None to be skipped
+    :param monitors: a list of monitors
     :param labels: a list of strings for the label of each monitor
+    :param data: a list of numpy arrays
     :param savefile: name of the file to save. If none, then will not save
-    :param object_string: string for the object to retreive. See 
-        retrieval_utils.retrieve_object for more details
-    :param retrieval_kwargs: dictionary of any necessary kwargs for the 
-        retrieval process. See retrieval_utils.retrieve_object for more details
-    :param title: title of the figure. Defaults to a cleaned version of the
-        object string
-    :param ylabel: label for the y-axis. Defaults to a cleaned version of 
-        f"Average {object_string}"
+    :param colors: a list of colors or None. If a sorted list of integers is 
+        given, then it is interpreted as identities for colors
+    :param line_styles: a list of line_styles or None
+    :param title: title of the figure. Defaults to "Untitled"
+    :param ylabel: label for the y-axis. Defaults to "Unspecified"
     :param log: whether to plot a log-plot. Can also be set to "symlog"
     :param directory: directory to save the file in. Defaults to the results dir
     :returns: the figure
     """
-
-    possible_line_styles = ["-", "--", "-.", ":", "."]
-
+    stashed_colors = list()
+    if colors is None:
+        colors = [None for _ in monitors]
+    if line_styles is None:
+        line_styles = ["-" for _ in monitors]
     clean_labels = _correct_and_clean_labels(labels)
-
     if title is None:
-        title = _clean_label(object_string)
+        title = "Untitled"
     if ylabel is None:
-        ylabel = f"Average {_clean_label(object_string)}"
+        ylabel = "Unspecified"
 
     fig = plt.figure()
-    for i, (monitor_set, label) in enumerate(zip(monitors, clean_labels)):
-        if len(monitor_set) == 1:
-            suffixes = [""]
-        elif len(monitor_set) == 2:
-            suffixes = [" (Training)", " (Evaluation)"]
-        else:
-            suffixes = ["SET SUFFIXES!" for monitor in monitor_set]
-
-        color = None
-        for monitor, suffix, line_style in zip(
-            monitor_set, suffixes, possible_line_styles
-        ):
-            if monitor is None:
-                continue
-            data = retrieve_object(monitor, object_string, **retrieval_kwargs)
-
-            if color is None:
-                line2d = plt.plot(
-                    monitor.epoch, data, "-", label=f"{label}{suffix}"
-                )
-                color = line2d[0].get_color()
-            else:
+    for monitor, label, datum, color, line_style in zip(
+        monitors, clean_labels, data, colors, line_styles
+    ):
+        if color is None:
+            plt.plot(monitor.epoch, datum, line_style, label=label)
+        elif isinstance(color, int):
+            if len(stashed_colors) > color:
+                color = stashed_colors[color]
                 plt.plot(
-                    monitor.epoch,
-                    data,
-                    line_style,
-                    label=f"{label}{suffix}",
-                    color=color,
+                    monitor.epoch, datum, line_style, label=label, color=color
                 )
+            else:
+                line2d = plt.plot(monitor.epoch, datum, line_style, label=label)
+                color = line2d[0].get_color()
+                stashed_colors.append(color)
+        else:
+            plt.plot(monitor.epoch, datum, line_style, label=label, color=color)
     plt.title(title)
     plt.ylabel(ylabel)
     plt.xlabel("Epoch")
@@ -98,79 +82,6 @@ def _plot_object(
 
     if savefile is not None:
         filepath = f"{directory}/{savefile}.png"
-        print(f"Saving {object_string} plot to {filepath}")
+        print(f"Saving {title} plot to {filepath}")
         plt.savefig(filepath, dpi=300)
     return fig
-
-
-def plot_loss(
-    monitors,
-    labels,
-    savefile,
-    total=False,
-    title="Losses",
-    ylabel="Average loss",
-    log=False,
-    directory=DEFAULT_DIRECTORY,
-):
-    """Plots several loss curves
-
-    :param monitors: a list of pairs of monitors [(training, evaluation)].
-        Elements of the pair can be set to None to be skipped
-    :param labels: a list of strings for the label of each monitor
-    :param savefile: name of the file to save. If none, then will not save
-    :param total: whether to plot the constrained or unconstrained loss.
-        Defaults to unconstrained
-    :param title: title of the figure
-    :param ylabel: label for the y-axis
-    :param log: whether to plot a log-plot. Can also be set to "symlog"
-    :param directory: directory to save the file in. Defaults to the results dir
-    :returns: the figure
-    """
-    if total:
-        object_string = "total_loss"
-    else:
-        object_string = "mean_loss"
-    return _plot_object(
-        monitors,
-        labels,
-        savefile,
-        object_string,
-        title=title,
-        ylabel=ylabel,
-        log=log,
-        directory=directory,
-    )
-
-
-def plot_constraints_error(
-    monitors,
-    labels,
-    savefile,
-    title="Constraint error",
-    ylabel="Average constraint value",
-    log=False,
-    directory=DEFAULT_DIRECTORY,
-):
-    """Plots the constraints error, as if it were a loss
-
-    :param monitors: a list of monitors, e.g. [training, evaluation]
-    :param labels: a list of strings for the label of each monitor
-    :param savefile: name of the file to save. If none, then will not save
-    :param title: title of the figure
-    :param ylabel: label for the y-axis
-    :param log: whether to plot a log-plot. Can also be set to "symlog"
-    :param directory: directory to save the file in. Defaults to the results dir
-    :returns: the figure
-    """
-    object_string = "constraints_error"
-    return _plot_object(
-        monitors,
-        labels,
-        savefile,
-        object_string,
-        title=title,
-        ylabel=ylabel,
-        log=log,
-        directory=directory,
-    )
