@@ -8,7 +8,8 @@ from pyinsulate.handlers import Monitor
 
 class ProofOfConstraintMonitor(Monitor):
     def __init__(self, is_evaluation=False):
-        super().__init__(is_evaluation=is_evaluation)
+        super().__init__()
+        self.is_evaluation = is_evaluation
 
         # epoch and iteration are recorded automatically
         self.add_key("batch_size")

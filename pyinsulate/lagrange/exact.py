@@ -158,10 +158,10 @@ def compute_exact_multipliers(
         multipliers = untransformed_multipliers.new_zeros(
             untransformed_multipliers.size()
         )
-        # torch.gels is NOT yet batch-enabled. As such, we do the batching manually
+        # torch.lstsq is NOT yet batch-enabled. As such, we do the batching manually
         for b in range(len(multipliers)):
             # discard the QR decomposition
-            multipliers[b], __ = torch.gels(
+            multipliers[b], __ = torch.lstsq(
                 untransformed_multipliers[b], gram_matrix[b]
             )
         start_time = record_timing(start_time, Timing_Events.LEAST_SQUARES)
