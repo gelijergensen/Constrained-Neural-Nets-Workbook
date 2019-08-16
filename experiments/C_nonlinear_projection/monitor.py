@@ -76,6 +76,7 @@ class NonlinearProjectionMonitor(Monitor):
                 "original_out",
                 torch.cat(self.ctx["original_out"], dim=0).numpy(),
             )
+            # TODO this implicitly assumes we have the same number of projection steps for every item in the epoch
             self.add_value(
                 "all_out",
                 [

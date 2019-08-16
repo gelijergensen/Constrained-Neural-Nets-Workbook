@@ -206,6 +206,13 @@ class InferenceLoop(object):
         self.tolerance = tolerance
         self.max_iters = max_iterations
 
+    def should_terminate(self, engine):
+        return (
+            engine.state.constraints_error < self.tolerance
+            or engine.state.projection_iterations >= self.max_iters
+        )
+
+    def __call__(self, engine, batch):
         # Used to restore model (both are important here)
         self.original_model_state_dict = deepcopy(self.model.state_dict())
         self.original_opt_state_dict = deepcopy(
@@ -219,14 +226,6 @@ class InferenceLoop(object):
             .clone()
             .detach()
         )
-
-    def should_terminate(self, engine):
-        return (
-            engine.state.constraints_error < self.tolerance
-            or engine.state.projection_iterations >= self.max_iters
-        )
-
-    def __call__(self, engine, batch):
         if not hasattr(engine.state, "times"):
             setattr(engine.state, "times", dict())
 

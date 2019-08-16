@@ -59,6 +59,7 @@ def default_configuration():
             "sampling": "uniform",
         },
         "batch_size": 10,
+        "inference_batch_size": 1,
         "architecture": Dense,
         "model_size": [20],
         "model_act": nn.Tanh(),
@@ -80,6 +81,7 @@ def get_data(configuration):
         configuration["testing_parameterizations"],
         seed=configuration["seed"],
         batch_size=configuration["batch_size"],
+        testing_batch_size=configuration["inference_batch_size"],
     )
 
 

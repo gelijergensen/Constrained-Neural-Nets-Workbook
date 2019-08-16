@@ -120,6 +120,7 @@ def get_singlewave_dataloaders(
     testing_parameterization,
     seed=None,
     batch_size=32,
+    testing_batch_size=None,
 ):
     """Gets the singlewave dataloaders given some configurations
 
@@ -135,8 +136,13 @@ def get_singlewave_dataloaders(
         for testing data
     :param seed: optional seed for generating data
     :param batch_size: batch size of the returned dataloaders
+    :param testing_batch_size: batch size for the testing dataloader. Defaults
+        to batch_size
     :return: train_dl, test_dl
     """
+    if testing_batch_size is None:
+        testing_batch_size = batch_size
+
     training_amplitude = training_parameterization["amplitude"]
     training_frequency = training_parameterization["frequency"]
     training_phase = training_parameterization["phase"]
@@ -164,7 +170,7 @@ def get_singlewave_dataloaders(
         seed=seed,
     )
     train_dl = DataLoader(train_ds, batch_size, shuffle=True)
-    test_dl = DataLoader(test_ds, batch_size)
+    test_dl = DataLoader(test_ds, testing_batch_size)
     return train_dl, test_dl
 
 
@@ -173,6 +179,7 @@ def get_multiwave_dataloaders(
     testing_parameterizations,
     seed=None,
     batch_size=32,
+    testing_batch_size=None,
 ):
     """Gets the multiwave dataloaders given some configurations
 
@@ -187,9 +194,13 @@ def get_multiwave_dataloaders(
     :param testing_parameterizations: sames as training_parameterizations, but
         for testing data
     :param seed: optional seed for generating data
-    :param batch_size: batch size of the returned dataloaders
+    :param testing_batch_size: batch size for the testing dataloader. Defaults
+        to batch_size
     :return: train_dl, test_dl
     """
+    if testing_batch_size is None:
+        testing_batch_size = batch_size
+
     training_amplitudes = training_parameterizations["amplitudes"]
     training_frequencies = training_parameterizations["frequencies"]
     training_phases = training_parameterizations["phases"]
@@ -217,5 +228,5 @@ def get_multiwave_dataloaders(
         seed=seed,
     )
     train_dl = DataLoader(train_ds, batch_size, shuffle=True)
-    test_dl = DataLoader(test_ds, batch_size)
+    test_dl = DataLoader(test_ds, testing_batch_size)
     return train_dl, test_dl
