@@ -3,6 +3,8 @@
 import torch
 import torch.nn as nn
 
+from pyinsulate.projection import ProjectableModel
+
 
 class Swish(object):
     def __init__(self):
@@ -15,7 +17,7 @@ class Swish(object):
         return "Swish()"
 
 
-class Dense(nn.Module):
+class Dense(ProjectableModel):
     """A model which simply concatenates the parameterization to the inputs"""
 
     @staticmethod
@@ -59,7 +61,7 @@ class Dense(nn.Module):
         return xb.view(-1, 1)
 
 
-class ParameterizedDense(nn.Module):
+class ParameterizedDense(ProjectableModel):
     """A model which is a standard dense neural network, but after every layer,
     a rescaling is applied element-wise, using a hypernetwork output based on
     the parameterization vector"""
