@@ -33,6 +33,8 @@ def default_configuration():
     model_act: activation function for the model. Defaults to nn.Tanh()
     model_final_act: activation function for last layer. Defaults to None
     learning_rate: learning rate. Defaults to 0.01
+    projection_learning_rate: learning rate for projection. Defaults to same
+        as learning_rate
     device: device to run on ("cpu"/"cuda"). Defaults to "cpu"
     regularization_weight: multiplier to use for soft-constraints during
         training. Defaults to 0, for unconstrained
@@ -65,6 +67,7 @@ def default_configuration():
         "model_act": nn.Tanh(),
         "model_final_act": None,
         "learning_rate": 0.01,
+        "projection_learning_rate": None,
         "device": "cpu",
         "regularization_weight": 0,
         "constraint": helmholtz_equation,
@@ -97,7 +100,13 @@ def build_model_and_optimizer(configuration):
         final_activation=configuration["model_final_act"],
     ).to(device=torch.device(configuration["device"]))
     opt = optim.Adam(model.parameters(), lr=configuration["learning_rate"])
-    return model, opt
+    inf_lr = (
+        configuration["learning_rate"]
+        if configuration["projection_learning_rate"] is None
+        else configuration["projection_learning_rate"]
+    )
+    proj_opt = optim.Adam(model.parameters(), lr=inf_lr)
+    return model, opt, proj_opt
 
 
 def get_loss_and_constraint(configuration):
@@ -169,7 +178,7 @@ def run_experiment(
         checkpointer = None
 
     # Build the model, optimizer, loss, and constraint
-    model, opt = build_model_and_optimizer(kwargs)
+    model, opt, proj_opt = build_model_and_optimizer(kwargs)
     loss, constraint = get_loss_and_constraint(kwargs)
 
     # This is the trainer because we provide the optimizer
@@ -209,7 +218,7 @@ def run_experiment(
             model,
             loss,
             constraint,
-            opt,
+            proj_opt,
             inference=True,
             monitor=inference_monitor,
             regularization_weight=kwargs["regularization_weight"],
