@@ -277,6 +277,7 @@ class InferenceLoop(object):
         while not self.should_terminate(engine):
             # Do a backwards pass on the constraint error
             self.optimizer.zero_grad()
+            print(engine.state.constraints_error.item())
             engine.state.constraints_error.backward()
             self.optimizer.step()
 
@@ -306,6 +307,7 @@ class InferenceLoop(object):
             projection_iteration_times.append(
                 engine.state.times[Sub_Batch_Events.PROJECTION_ITERATION.value]
             )
+
         # Correct the actual average timing of the projection iteration
         engine.state.times[
             Sub_Batch_Events.PROJECTION_ITERATION.value
@@ -336,6 +338,21 @@ class InferenceLoop(object):
         engine.state.model_parameter_differences = (
             final_model_parameters - self.original_model_parameters
         )
+        # duplicate the final state here to fill in the "missing" data
+        projection_iterations = engine.state.projection_iterations
+        while projection_iterations < self.max_iters:
+            engine.state.all_out.append(engine.state.final_out)
+            engine.state.all_loss.append(engine.state.final_loss)
+            engine.state.all_mean_loss.append(engine.state.final_mean_loss)
+            engine.state.all_constraints.append(engine.state.final_constraints)
+            engine.state.all_constraints_diagnostics.append(
+                engine.state.final_constraints_diagnostics
+            )
+            engine.state.all_constraints_error.append(
+                engine.state.final_constraints_error
+            )
+            projection_iterations += 1
+
         # Clean up
         self.model.load_state_dict(self.original_model_state_dict)
         self.optimizer.load_state_dict(self.original_opt_state_dict)
