@@ -50,7 +50,7 @@ class NonlinearProjectionMonitor(Monitor):
 
     def summarize(self):
         if self.monitor_type == "inference":
-            summary = f"Original: (Loss: {self.original_mean_loss[-1]:0.5f}, Constraint error: {self.original_constraints_error[-1]:0.5f}). Final: (Loss: {self.final_mean_loss[-1]:0.5f}, Constraint error: {self.final_constraints_error[-1]:0.5f})"
+            summary = f"Original: (Loss: {self.original_mean_loss[-1]:0.5f}, Constraint error: {self.original_constraints_error[-1]:0.5f}). Final (average {np.average(self.projection_iterations[-1]):0.2f} iterations): (Loss: {self.final_mean_loss[-1]:0.5f}, Constraint error: {self.final_constraints_error[-1]:0.5f})"
         else:
             summary = f"Mean total loss: {self.total_loss[-1]:0.5f}, Mean data loss: {self.mean_loss[-1]:0.5f}, Mean constraint error: {self.constraints_error[-1]:0.5f}"
         return summary
@@ -76,7 +76,6 @@ class NonlinearProjectionMonitor(Monitor):
                 "original_out",
                 torch.cat(self.ctx["original_out"], dim=0).numpy(),
             )
-            # TODO this implicitly assumes we have the same number of projection steps for every item in the epoch
             self.add_value(
                 "all_out",
                 [
