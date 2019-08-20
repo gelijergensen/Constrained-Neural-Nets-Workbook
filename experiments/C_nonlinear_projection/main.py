@@ -15,7 +15,7 @@ from .constraints import helmholtz_equation, pythagorean_equation
 from .dataloader import get_multiwave_dataloaders
 from .event_loop import create_engine, Sub_Batch_Events
 from .model import Dense, ParameterizedDense
-from .monitor import NonlinearProjectionMonitor
+from .monitor import TrainingMonitor, ProjectionMonitor
 from .monitor_predictions import PredictionLogger
 
 
@@ -172,13 +172,9 @@ def run_experiment(
     loss, constraint = get_loss_and_constraint(kwargs)
 
     # Setup Monitors and Checkpoints
-    training_monitor = NonlinearProjectionMonitor("training")
-    evaluation_monitor = (
-        NonlinearProjectionMonitor("evaluation") if evaluate else None
-    )
-    projection_monitor = (
-        NonlinearProjectionMonitor("projection") if projection else None
-    )
+    training_monitor = TrainingMonitor("training")
+    evaluation_monitor = TrainingMonitor("evaluation") if evaluate else None
+    projection_monitor = ProjectionMonitor() if projection else None
     prediction_logger = PredictionLogger(model)
     if should_checkpoint:
         checkpointer = ModelAndMonitorCheckpointer(
@@ -248,58 +244,66 @@ def run_experiment(
     def run_evaluation(trainer):
         if training_monitor is not None and should_log:
             summary = training_monitor.summarize()
-            log(f"Epoch[{trainer.state.epoch}] Training Summary - {summary}")
+            log(
+                f"Epoch[{trainer.state.epoch:05d}] Training Summary - {summary}"
+            )
 
         if evaluate:
             if should_log:
                 log(
-                    f"Epoch[{trainer.state.epoch}] - Evaluating on training data..."
+                    f"Epoch[{trainer.state.epoch:05d}] - Evaluating on training data..."
                 )
             evaluator.run(train_dl)
             if evaluation_monitor is not None and should_log:
                 summary = evaluation_monitor.summarize()
                 log(
-                    f"Epoch[{trainer.state.epoch}] Evaluation Summary - {summary}"
+                    f"Epoch[{trainer.state.epoch:05d}] Evaluation Summary - {summary}"
                 )
 
         # Handle projection
         if projection:
             if should_log:
-                log(f"Epoch[{trainer.state.epoch}] - Projecting...")
-
-            @projector.on(Events.EPOCH_COMPLETED)
-            def projection_summary(projector):
-                if projection_monitor is not None and should_log:
-                    summary = projection_monitor.summarize()
-                    log(
-                        f"Epoch[{trainer.state.epoch}-{projector.state.epoch}] Generalization Summary - {summary}"
-                    )
-
-            @projector.on(Events.EPOCH_COMPLETED)
-            def projection_stop(projector):
-                if projection_monitor is not None:
-                    if (
-                        projection_monitor.constraints_error[-1]
-                        < kwargs["tolerance"]
-                    ):
-                        projector.terminate()
-
+                log(f"Epoch[{trainer.state.epoch:05d}] - Projecting...")
             projector.run(test_dl, max_epochs=kwargs["max_iterations"])
             if projection_monitor is not None and should_log:
                 summary = projection_monitor.summarize()
                 log(
-                    f"Epoch[{trainer.state.epoch}] Generalization Summary - {summary}"
+                    f"Epoch[{trainer.state.epoch:05d}] Generalization Summary - {summary}"
                 )
 
         if should_checkpoint:
             checkpointer(trainer)
+
+    # Handle projection summary
+    if projection:
+
+        @projector.on(Events.EPOCH_COMPLETED)
+        def projection_summary(projector):
+            if projection_monitor is not None and should_log:
+                summary = projection_monitor.summarize(during_projection=True)
+                log(
+                    f"-- Epoch[{projector.state.epoch:05d}] Projection Summary - {summary}"
+                )
+
+        @projector.on(Events.EPOCH_COMPLETED)
+        def projection_stop(projector):
+            if projection_monitor is not None:
+                if projection_monitor.should_stop_projection(
+                    kwargs["tolerance"]
+                ):
+                    projector.terminate()
+
+        @projector.on(Events.COMPLETED)
+        def projection_unterminate(projector):
+            # Unblock the projector so it can resume later
+            projector.should_terminate = False
 
     if should_log:
 
         @trainer.on(Events.ITERATION_COMPLETED)
         def log_batch_summary(trainer):
             log(
-                "Epoch[{}] - Total loss: {:.5f}, Data Loss: {:.5f}, Constraint Error: {:.5f}".format(
+                "Epoch[{:05d}] - Total loss: {:.5f}, Data Loss: {:.5f}, Constraint Error: {:.5f}".format(
                     trainer.state.epoch,
                     trainer.state.total_loss.cpu().item(),
                     trainer.state.mean_loss.cpu().item(),

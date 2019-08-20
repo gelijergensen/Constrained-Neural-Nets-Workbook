@@ -258,7 +258,6 @@ class ProjectionLoop(object):
             .detach()
         )
         self.optimizer.zero_grad()
-        print(engine.state.constraints_error.item())
         engine.state.model_parameters_grad = torch.cat(
             [param.grad.view(-1) for param in self.model.parameters()], dim=-1
         )

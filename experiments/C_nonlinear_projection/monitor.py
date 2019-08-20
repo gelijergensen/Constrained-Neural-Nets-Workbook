@@ -1,12 +1,13 @@
 """Things to monitor during the training and evaluation phases"""
 
+from ignite.engine import Events
 import numpy as np
 import torch
 
 from pyinsulate.handlers import Monitor
 
 
-class NonlinearProjectionMonitor(Monitor):
+class TrainingMonitor(Monitor):
     def __init__(self, monitor_type="training"):
         super().__init__()
         self.monitor_type = monitor_type
@@ -142,3 +143,102 @@ class NonlinearProjectionMonitor(Monitor):
         if self.timing_keys is None:
             self.timing_keys = list(engine.state.times.keys())
 
+
+class ProjectionMonitor(Monitor):
+    def __init__(self):
+        super().__init__()
+
+        # epoch and iteration are recorded automatically
+        self.add_key("batch_size")
+
+        self.add_key("mean_loss")
+        self.add_key("constraints_error")
+
+        self.add_key("timing")
+        self.timing_keys = None
+
+    def summarize(self, during_projection=False):
+        if during_projection:
+            summary = f"Mean data loss: {self.ctx['epoch_mean_loss'][-1]:0.5f}, Mean constraint error: {self.ctx['epoch_constraints_error'][-1]:0.5f}"
+        else:
+            summary = f"Mean data loss: {self.mean_loss[-1][-1]:0.5f}, Mean constraint error: {self.constraints_error[-1][-1]:0.5f}"
+        return summary
+
+    @staticmethod
+    def get_tensor(tensor):
+        return tensor.cpu().detach()
+
+    @staticmethod
+    def get_tensor_item(tensor):
+        return tensor.cpu().item()
+
+    def should_stop_projection(self, tolerance):
+        """This is a little outside of what this should actually do, but the 
+        monitor does know what the current constraints error is"""
+        return self.ctx["epoch_constraints_error"][-1] < tolerance
+
+    def attach(self, engine):
+        engine.add_event_handler(Events.STARTED, self.new_epoch)
+        engine.add_event_handler(Events.EPOCH_STARTED, self.new_iteration)
+        engine.add_event_handler(Events.EPOCH_COMPLETED, self.mark_epoch)
+        engine.add_event_handler(Events.COMPLETED, self.end_epoch)
+        engine.add_event_handler(Events.ITERATION_COMPLETED, self.__call__)
+
+    def mark_epoch(self, engine):
+        self.ctx["epoch_batch_sizes"].append(np.array(self.ctx["batch_size"]))
+        self.ctx["epoch_mean_loss"].append(
+            np.average(
+                np.array(self.ctx["mean_loss"]),
+                weights=np.array(self.ctx["batch_size"]),
+            )
+        )
+        self.ctx["epoch_constraints_error"].append(
+            np.average(
+                np.array(self.ctx["constraints_error"]),
+                weights=np.array(self.ctx["batch_size"]),
+            )
+        )
+        # only the items with full batches
+        timing_mask = (
+            np.array(self.ctx["batch_size"])
+            == np.array(self.ctx["batch_size"])[0]
+        )
+        timing_dict = dict()
+        for key in self.timing_keys:
+            times = np.array(
+                [
+                    self.ctx["timing"][i][key]
+                    for i in range(len(self.ctx["timing"]))
+                ]
+            )
+            timing_dict[key] = np.average(
+                times[np.logical_and(timing_mask, times > -998)]
+            )
+        self.ctx["epoch_timing"].append(timing_dict)
+
+        self.ctx["batch_size"] = list()
+        self.ctx["mean_loss"] = list()
+        self.ctx["constraints_error"] = list()
+        self.ctx["timing"] = list()
+
+    def finalize(self, engine):
+        self.add_value("batch_size", np.array(self.ctx["epoch_batch_size"]))
+        self.add_value("mean_loss", np.array(self.ctx["epoch_mean_loss"]))
+        self.add_value(
+            "constraints_error", np.array(self.ctx["epoch_constraints_error"])
+        )
+        self.add_value("timing", np.array(self.ctx["epoch_timing"]))
+
+    def __call__(self, engine):
+        self.ctx["batch_size"].append(len(self.get_tensor(engine.state.xb[0])))
+
+        self.ctx["mean_loss"].append(
+            self.get_tensor_item(engine.state.mean_loss)
+        )
+        self.ctx["constraints_error"].append(
+            self.get_tensor_item(engine.state.constraints_error)
+        )
+
+        self.ctx["timing"].append(engine.state.times.copy())
+        if self.timing_keys is None:
+            self.timing_keys = list(engine.state.times.keys())

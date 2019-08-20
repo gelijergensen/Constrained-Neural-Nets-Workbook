@@ -15,6 +15,9 @@ class MonitorContext(object):
             self._dictionary[item] = list()
         return self._dictionary[item]
 
+    def __setitem__(self, item, value):
+        self._dictionary[item] = value
+
     def __str__(self):
         return str(self._dictionary)
 
