@@ -3,6 +3,7 @@ methods and draw comparisons"""
 
 import functools
 from ignite.engine import Events
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -14,7 +15,8 @@ from .constraints import helmholtz_equation, pythagorean_equation
 from .dataloader import get_multiwave_dataloaders
 from .event_loop import create_engine, Sub_Batch_Events
 from .model import Dense, ParameterizedDense
-from .monitor import NonlinearProjectionMonitor
+from .monitor import TrainingMonitor, ProjectionMonitor
+from .monitor_predictions import PredictionLogger
 
 
 __all__ = ["run_experiment", "default_configuration"]
@@ -28,6 +30,8 @@ def default_configuration():
     testing_parameterizations: dictionary of parameters for testing data. See
         dataloader.get_multiwave_dataloaders() for more details
     batch_size: batch size. Defaults to 100
+    projection_batch_size: batch size for projection. Defaults to same as 
+        batch_size
     model_size: a list of integers for the lengths of the layers of the
         model. Defaults to [20].
     model_act: activation function for the model. Defaults to nn.Tanh()
@@ -38,7 +42,7 @@ def default_configuration():
     device: device to run on ("cpu"/"cuda"). Defaults to "cpu"
     regularization_weight: multiplier to use for soft-constraints during
         training. Defaults to 0, for unconstrained
-    constraint: function to use for constraining during inference
+    constraint: function to use for constraining during projection
     error_fn: error function to use for converting the constraint function to an
         error function for soft constraining. Defaults to MSE
     tolerance: desired maximum value of constraint error
@@ -61,7 +65,7 @@ def default_configuration():
             "sampling": "uniform",
         },
         "batch_size": 10,
-        "inference_batch_size": 1,
+        "projection_batch_size": None,
         "architecture": Dense,
         "model_size": [20],
         "model_act": nn.Tanh(),
@@ -79,12 +83,17 @@ def default_configuration():
 
 def get_data(configuration):
     """Grabs the training and testing dataloaders for this configuration"""
+    proj_batch_size = (
+        configuration["batch_size"]
+        if configuration["projection_batch_size"] is None
+        else configuration["projection_batch_size"]
+    )
     return get_multiwave_dataloaders(
         configuration["training_parameterizations"],
         configuration["testing_parameterizations"],
         seed=configuration["seed"],
         batch_size=configuration["batch_size"],
-        testing_batch_size=configuration["inference_batch_size"],
+        proj_batch_size=proj_batch_size,
     )
 
 
@@ -100,12 +109,12 @@ def build_model_and_optimizer(configuration):
         final_activation=configuration["model_final_act"],
     ).to(device=torch.device(configuration["device"]))
     opt = optim.Adam(model.parameters(), lr=configuration["learning_rate"])
-    inf_lr = (
+    proj_lr = (
         configuration["learning_rate"]
         if configuration["projection_learning_rate"] is None
         else configuration["projection_learning_rate"]
     )
-    proj_opt = optim.Adam(model.parameters(), lr=inf_lr)
+    proj_opt = optim.Adam(model.parameters(), lr=proj_lr)
     return model, opt, proj_opt
 
 
@@ -121,7 +130,7 @@ def run_experiment(
     max_epochs,
     log=None,
     evaluate=True,
-    inference=True,
+    projection=True,
     save_directory=".",
     save_file=None,
     save_interval=1,
@@ -133,7 +142,7 @@ def run_experiment(
     :param log: function to use for logging. None supresses logging
     :param evaluate: whether to run the evaluator once over the 
         training data at the end of an epoch
-    :param inference: whether to run the inference engine once over the 
+    :param projection: whether to run the projection engine once over the 
         testing data at the end of an epoch
     :param save_directory: optional directory to save checkpoints into. Defaults
         to the directory that the main script was called from
@@ -158,28 +167,26 @@ def run_experiment(
     # Get the data
     train_dl, test_dl = get_data(kwargs)
 
+    # Build the model, optimizer, loss, and constraint
+    model, opt, proj_opt = build_model_and_optimizer(kwargs)
+    loss, constraint = get_loss_and_constraint(kwargs)
+
     # Setup Monitors and Checkpoints
-    training_monitor = NonlinearProjectionMonitor("training")
-    evaluation_monitor = (
-        NonlinearProjectionMonitor("evaluation") if evaluate else None
-    )
-    inference_monitor = (
-        NonlinearProjectionMonitor("inference") if inference else None
-    )
+    training_monitor = TrainingMonitor("training")
+    evaluation_monitor = TrainingMonitor("evaluation") if evaluate else None
+    projection_monitor = ProjectionMonitor() if projection else None
+    prediction_logger = PredictionLogger(model)
     if should_checkpoint:
         checkpointer = ModelAndMonitorCheckpointer(
             save_directory,
             save_file,
             kwargs,
-            [training_monitor, evaluation_monitor, inference_monitor],
+            [training_monitor, evaluation_monitor, projection_monitor],
+            prediction_logger,
             save_interval=save_interval,
         )
     else:
         checkpointer = None
-
-    # Build the model, optimizer, loss, and constraint
-    model, opt, proj_opt = build_model_and_optimizer(kwargs)
-    loss, constraint = get_loss_and_constraint(kwargs)
 
     # This is the trainer because we provide the optimizer
     trainer = create_engine(
@@ -187,7 +194,7 @@ def run_experiment(
         loss,
         constraint,
         opt,
-        inference=False,
+        projection=False,
         monitor=training_monitor,
         regularization_weight=kwargs["regularization_weight"],
         error_fn=kwargs["error_fn"],
@@ -203,7 +210,7 @@ def run_experiment(
             loss,
             constraint,
             optimizer=None,
-            inference=False,
+            projection=False,
             monitor=evaluation_monitor,
             regularization_weight=kwargs["regularization_weight"],
             error_fn=kwargs["error_fn"],
@@ -213,14 +220,14 @@ def run_experiment(
         )
     else:
         evaluator = None
-    if inference:
-        inferencer = create_engine(
+    if projection:
+        projector = create_engine(
             model,
             loss,
             constraint,
             proj_opt,
-            inference=True,
-            monitor=inference_monitor,
+            projection=True,
+            monitor=projection_monitor,
             regularization_weight=kwargs["regularization_weight"],
             error_fn=kwargs["error_fn"],
             device=kwargs["device"],
@@ -228,48 +235,75 @@ def run_experiment(
             max_iterations=kwargs["max_iterations"],
         )
     else:
-        inferencer = None
+        projector = None
+
+    prediction_logger.attach(trainer, projector)
 
     # Ensure evaluation happens once per epoch
     @trainer.on(Events.EPOCH_COMPLETED)
     def run_evaluation(trainer):
         if training_monitor is not None and should_log:
             summary = training_monitor.summarize()
-            log(f"Epoch[{trainer.state.epoch}] Training Summary - {summary}")
+            log(
+                f"Epoch[{trainer.state.epoch:05d}] Training Summary - {summary}"
+            )
 
         if evaluate:
             if should_log:
                 log(
-                    f"Epoch[{trainer.state.epoch}] - Evaluating on training data..."
+                    f"Epoch[{trainer.state.epoch:05d}] - Evaluating on training data..."
                 )
             evaluator.run(train_dl)
             if evaluation_monitor is not None and should_log:
                 summary = evaluation_monitor.summarize()
                 log(
-                    f"Epoch[{trainer.state.epoch}] Evaluation Summary - {summary}"
+                    f"Epoch[{trainer.state.epoch:05d}] Evaluation Summary - {summary}"
                 )
 
-        if inference:
+        # Handle projection
+        if projection:
             if should_log:
+                log(f"Epoch[{trainer.state.epoch:05d}] - Projecting...")
+            projector.run(test_dl, max_epochs=kwargs["max_iterations"])
+            if projection_monitor is not None and should_log:
+                summary = projection_monitor.summarize()
                 log(
-                    f"Epoch[{trainer.state.epoch}] - Evaluating on testing data..."
-                )
-            inferencer.run(test_dl)
-            if inference_monitor is not None and should_log:
-                summary = inference_monitor.summarize()
-                log(
-                    f"Epoch[{trainer.state.epoch}] Generalization Summary - {summary}"
+                    f"Epoch[{trainer.state.epoch:05d}] Generalization Summary - {summary}"
                 )
 
         if should_checkpoint:
             checkpointer(trainer)
+
+    # Handle projection summary
+    if projection:
+
+        @projector.on(Events.EPOCH_COMPLETED)
+        def projection_summary(projector):
+            if projection_monitor is not None and should_log:
+                summary = projection_monitor.summarize(during_projection=True)
+                log(
+                    f"Epoch[{trainer.state.epoch:05d}-{projector.state.epoch:05d}] Projection Summary - {summary}"
+                )
+
+        @projector.on(Events.EPOCH_COMPLETED)
+        def projection_stop(projector):
+            if projection_monitor is not None:
+                if projection_monitor.should_stop_projection(
+                    kwargs["tolerance"]
+                ):
+                    projector.terminate()
+
+        @projector.on(Events.COMPLETED)
+        def projection_unterminate(projector):
+            # Unblock the projector so it can resume later
+            projector.should_terminate = False
 
     if should_log:
 
         @trainer.on(Events.ITERATION_COMPLETED)
         def log_batch_summary(trainer):
             log(
-                "Epoch[{}] - Total loss: {:.5f}, Data Loss: {:.5f}, Constraint Error: {:.5f}".format(
+                "Epoch[{:05d}] - Total loss: {:.5f}, Data Loss: {:.5f}, Constraint Error: {:.5f}".format(
                     trainer.state.epoch,
                     trainer.state.total_loss.cpu().item(),
                     trainer.state.mean_loss.cpu().item(),
@@ -285,7 +319,7 @@ def run_experiment(
 
     return (
         kwargs,
-        (trainer, evaluator, inferencer),
-        (training_monitor, evaluation_monitor, inference_monitor),
+        (trainer, evaluator, projector),
+        (training_monitor, evaluation_monitor, projection_monitor),
     )
 

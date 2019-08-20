@@ -11,4 +11,4 @@ def _correct_label(label):
 
 def _clean_label(label):
     """Replaces all underscores with spaces and capitalizes first letter"""
-    return label.replace("_", " ").capitalize()
+    return label.replace("_", " ").capitalize() if label is not None else None

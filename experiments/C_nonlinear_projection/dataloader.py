@@ -120,7 +120,7 @@ def get_singlewave_dataloaders(
     testing_parameterization,
     seed=None,
     batch_size=32,
-    testing_batch_size=None,
+    proj_batch_size=None,
 ):
     """Gets the singlewave dataloaders given some configurations
 
@@ -136,12 +136,12 @@ def get_singlewave_dataloaders(
         for testing data
     :param seed: optional seed for generating data
     :param batch_size: batch size of the returned dataloaders
-    :param testing_batch_size: batch size for the testing dataloader. Defaults
+    :param proj_batch_size: batch size for the testing dataloader. Defaults
         to batch_size
     :return: train_dl, test_dl
     """
-    if testing_batch_size is None:
-        testing_batch_size = batch_size
+    if proj_batch_size is None:
+        proj_batch_size = batch_size
 
     training_amplitude = training_parameterization["amplitude"]
     training_frequency = training_parameterization["frequency"]
@@ -170,8 +170,8 @@ def get_singlewave_dataloaders(
         seed=seed,
     )
     train_dl = DataLoader(train_ds, batch_size, shuffle=True)
-    test_dl = DataLoader(test_ds, testing_batch_size)
-    return train_dl, test_dl
+    proj_dl = DataLoader(test_ds, proj_batch_size, shuffle=True)
+    return train_dl, proj_dl
 
 
 def get_multiwave_dataloaders(
@@ -179,7 +179,7 @@ def get_multiwave_dataloaders(
     testing_parameterizations,
     seed=None,
     batch_size=32,
-    testing_batch_size=None,
+    proj_batch_size=None,
 ):
     """Gets the multiwave dataloaders given some configurations
 
@@ -194,12 +194,12 @@ def get_multiwave_dataloaders(
     :param testing_parameterizations: sames as training_parameterizations, but
         for testing data
     :param seed: optional seed for generating data
-    :param testing_batch_size: batch size for the testing dataloader. Defaults
+    :param proj_batch_size: batch size for the projection dataloader. Defaults
         to batch_size
     :return: train_dl, test_dl
     """
-    if testing_batch_size is None:
-        testing_batch_size = batch_size
+    if proj_batch_size is None:
+        proj_batch_size = batch_size
 
     training_amplitudes = training_parameterizations["amplitudes"]
     training_frequencies = training_parameterizations["frequencies"]
@@ -228,5 +228,5 @@ def get_multiwave_dataloaders(
         seed=seed,
     )
     train_dl = DataLoader(train_ds, batch_size, shuffle=True)
-    test_dl = DataLoader(test_ds, testing_batch_size)
-    return train_dl, test_dl
+    proj_dl = DataLoader(test_ds, proj_batch_size, shuffle=True)
+    return train_dl, proj_dl
