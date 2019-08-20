@@ -170,7 +170,7 @@ def get_singlewave_dataloaders(
         seed=seed,
     )
     train_dl = DataLoader(train_ds, batch_size, shuffle=True)
-    proj_dl = DataLoader(test_ds, proj_batch_size)
+    proj_dl = DataLoader(test_ds, proj_batch_size, shuffle=True)
     return train_dl, proj_dl
 
 
@@ -228,5 +228,5 @@ def get_multiwave_dataloaders(
         seed=seed,
     )
     train_dl = DataLoader(train_ds, batch_size, shuffle=True)
-    proj_dl = DataLoader(test_ds, proj_batch_size)
+    proj_dl = DataLoader(test_ds, proj_batch_size, shuffle=True)
     return train_dl, proj_dl

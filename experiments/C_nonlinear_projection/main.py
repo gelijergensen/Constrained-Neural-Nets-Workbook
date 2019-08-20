@@ -282,7 +282,7 @@ def run_experiment(
             if projection_monitor is not None and should_log:
                 summary = projection_monitor.summarize(during_projection=True)
                 log(
-                    f"-- Epoch[{projector.state.epoch:05d}] Projection Summary - {summary}"
+                    f"Epoch[{trainer.state.epoch:05d}-{projector.state.epoch:05d}] Projection Summary - {summary}"
                 )
 
         @projector.on(Events.EPOCH_COMPLETED)
