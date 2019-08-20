@@ -15,7 +15,7 @@ def plot_time(
     labels,
     savefile,
     title="Average computation time per epoch",
-    ylabel="Milliseconds",
+    ylabel="Seconds",
     log=False,
     directory=DEFAULT_DIRECTORY,
 ):
@@ -35,13 +35,23 @@ def plot_time(
     all_times = np.array(
         [
             [
-                np.mean([np.sum(epoch["total"]) for epoch in monitor.timing])
-                for monitor in [training_monitor, inference_monitor]
+                np.mean(
+                    [
+                        np.sum(epoch["total"])
+                        for epoch in training_monitor.timing
+                    ]
+                ),
+                np.mean(
+                    [
+                        np.sum([iteration["total"] for iteration in epoch])
+                        for epoch in projection_monitor.timing
+                    ]
+                ),
             ]
             for (
                 training_monitor,
                 evaluation_monitor,
-                inference_monitor,
+                projection_monitor,
             ) in monitors
         ]
     )
@@ -61,12 +71,7 @@ def plot_time(
                 line2d = plt.bar(position, time, width=bar_width, label=label)
                 colors.append(line2d[0].get_facecolor())
             else:
-                plt.bar(
-                    position,
-                    time,
-                    width=bar_width,
-                    color=colors[j],
-                )
+                plt.bar(position, time, width=bar_width, color=colors[j])
 
     # Add ticks on the middle of the group bars
     xs = (

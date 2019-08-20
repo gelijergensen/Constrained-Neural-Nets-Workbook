@@ -153,6 +153,8 @@ class ProjectionMonitor(Monitor):
 
         self.add_key("mean_loss")
         self.add_key("constraints_error")
+        self.add_key("projection_epochs")
+        self.add_key("model_parameters_difference_percentiles")
 
         self.add_key("timing")
         self.timing_keys = None
@@ -185,7 +187,7 @@ class ProjectionMonitor(Monitor):
         engine.add_event_handler(Events.ITERATION_COMPLETED, self.__call__)
 
     def mark_epoch(self, engine):
-        self.ctx["epoch_batch_sizes"].append(np.array(self.ctx["batch_size"]))
+        self.ctx["epoch_batch_size"].append(np.array(self.ctx["batch_size"]))
         self.ctx["epoch_mean_loss"].append(
             np.average(
                 np.array(self.ctx["mean_loss"]),
@@ -227,6 +229,21 @@ class ProjectionMonitor(Monitor):
         self.add_value(
             "constraints_error", np.array(self.ctx["epoch_constraints_error"])
         )
+        self.add_value(
+            "projection_epochs", len(np.array(self.ctx["epoch_batch_size"]))
+        )
+        # compute difference and percentiles thereof
+        self.add_value(
+            "model_parameters_difference_percentiles",
+            np.percentile(
+                (
+                    self.ctx["model_parameters"][-1]
+                    - self.ctx["model_parameters"][0]
+                ).numpy(),
+                np.linspace(0, 100, num=101),
+            ),
+        )
+
         self.add_value("timing", np.array(self.ctx["epoch_timing"]))
 
     def __call__(self, engine):
@@ -237,6 +254,9 @@ class ProjectionMonitor(Monitor):
         )
         self.ctx["constraints_error"].append(
             self.get_tensor_item(engine.state.constraints_error)
+        )
+        self.ctx["model_parameters"].append(
+            self.get_tensor(engine.state.model_parameters)
         )
 
         self.ctx["timing"].append(engine.state.times.copy())

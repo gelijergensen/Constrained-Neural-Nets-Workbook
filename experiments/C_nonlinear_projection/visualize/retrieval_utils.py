@@ -19,10 +19,13 @@ def retrieve_object(monitor, object_string, **kwargs):
     :returns: a numpy array of the data. If average_batches, then has shape
         (num_epochs,). Otherwise has shape (num_epochs, num_batchs_per_epoch)
     """
-    if object_string in ["mean_loss", "total_loss", "constraints_error"]:
+    if object_string in [
+        "mean_loss",
+        "total_loss",
+        "constraints_error",
+        "projection_epochs",
+    ]:
         data = retrieve_plain(monitor, object_string, **kwargs)
-    elif object_string == "loss":
-        data = retrieve_loss(monitor, **kwargs)
     elif object_string == "constraints":
         data = retrieve_constraint(monitor, **kwargs)
     # elif object_string == "constraints_diagnostics":
@@ -35,51 +38,30 @@ def retrieve_object(monitor, object_string, **kwargs):
     return data
 
 
-def retrieve_plain(monitor, object_string, original=False, final=False):
+def retrieve_plain(monitor, object_string):
     """Retrieves the request object as-is (doesn't apply any modification). This
     is valid only for objects which are single values (items from a tensor)
 
     :param monitor: either a training or evaluation monitor
     :param object_string: string to identify the object to retrieve
-    :param original: retrieve the original (for inference monitors only)
-    :param final: retrieve the final (for inference monitors only)
     :returns: the data for the given monitor directly
     """
-    if original:
-        true_object_string = f"original_{object_string}"
-        if monitor.monitor_type != "inference":
-            raise AttributeError(
-                f"Monitor is not an inference monitor. Cannot retrieve {true_object_string}"
-            )
-    elif final:
-        true_object_string = f"final_{object_string}"
-        if monitor.monitor_type != "inference":
-            raise AttributeError(
-                f"Monitor is not an inference monitor. Cannot retrieve {true_object_string}"
-            )
-    else:
-        true_object_string = object_string
-
-    return getattr(monitor, true_object_string)
+    return getattr(monitor, object_string)
 
 
-def retrieve_constraint(
-    monitor, absolute_value=False, original=False, final=False
-):
+def retrieve_constraint(monitor, absolute_value=False):
     """Retrieves the percentiles of the constraint (or the absolute value of
     the ith-constriant). WARNING: assumes only one constraint
     
     :param monitor: either a training or evaluation monitor
     :param absolute_value: whether to take the absolute value of the constraint
-    :param original: retrieve the original (for inference monitors only)
-    :param final: retrieve the final (for inference monitors only)
     :returns: the percentiles of the ith-constraint
     """
     if absolute_value:
         object_string = "constraints_abs_percentiles"
     else:
         object_string = "constraints_percentiles"
-    return retrieve_plain(monitor, object_string, original, final)
+    return retrieve_plain(monitor, object_string)
 
 
 def retrieve_parameters(monitor, gradients=False, differences=False):
@@ -92,19 +74,19 @@ def retrieve_parameters(monitor, gradients=False, differences=False):
     :returns: the values of the parameters (or gradients) for each batch and 
         epoch
     """
-    if monitor.monitor_type == "inference" and differences:
-        data = monitor.model_parameter_differences_percentiles
-    elif not monitor.monitor_type == "inference":
+    if differences:
+        if not hasattr(monitor, "model_parameters_difference_percentiles"):
+            raise AttributeError(
+                "Monitor is not projection monitor, so cannot retrieve model parameter differences"
+            )
+        data = monitor.model_parameters_difference_percentiles
+    else:
         if gradients:
             data = monitor.model_parameters_grad_percentiles
             if data[0][0] is None:
                 raise AttributeError("Parameters do not have gradients")
         else:
             data = monitor.model_parameters_percentiles
-    else:
-        raise ValueError(
-            "Monitor is inference, but differences was not requested"
-        )
 
     return data
 

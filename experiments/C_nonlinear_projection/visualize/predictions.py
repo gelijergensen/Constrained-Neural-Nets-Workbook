@@ -1,5 +1,7 @@
 """Plotting of the model predictions in the input and output space"""
 
+import matplotlib as mpl
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 import matplotlib.pyplot as plt
 
 from .config import DEFAULT_DIRECTORY
@@ -20,6 +22,9 @@ def plot_model_predictions(
     xlabel="Input",
     ylabel="Output",
     directory=DEFAULT_DIRECTORY,
+    cmap=None,
+    cbar_title="Epoch",
+    cbar_endpoints=None,
 ):
     """
 
@@ -37,6 +42,9 @@ def plot_model_predictions(
     :param xlabel: label for the x-axis
     :param ylabel: label for the y-axis
     :param directory: directory to save the file in. Defaults to the results dir
+    :param cmap: colormap to use for plotting colorbar. If not given, then no
+        colorbar will be plotted
+    :param cbar_title: title to use on colorbar
     :returns: the figure
     """
     stashed_colors = list()
@@ -57,19 +65,48 @@ def plot_model_predictions(
         elif isinstance(color, int):
             if len(stashed_colors) > color:
                 color = stashed_colors[color]
-                plt.plot(
-                    inputs, predictions, line_style, label=label, color=color
-                )
+                if label is not None:
+                    plt.plot(
+                        inputs,
+                        predictions,
+                        line_style,
+                        label=label,
+                        color=color,
+                    )
+                else:
+                    plt.plot(inputs, predictions, line_style, color=color)
             else:
-                line2d = plt.plot(inputs, predictions, line_style, label=label)
+                if label is not None:
+                    line2d = plt.plot(
+                        inputs, predictions, line_style, label=label
+                    )
+                else:
+                    line2d = plt.plot(inputs, predictions, line_style)
                 color = line2d[0].get_color()
                 stashed_colors.append(color)
         else:
-            plt.plot(inputs, predictions, line_style, label=label, color=color)
+            if label is not None:
+                cax = plt.plot(
+                    inputs, predictions, line_style, label=label, color=color
+                )
+            else:
+                cax = plt.plot(inputs, predictions, line_style, color=color)
     plt.title(title)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     plt.legend()
+    if cmap is not None:
+        ax = plt.gca()
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", size="5%", pad=0.05)
+
+        endpoints = (0, 1) if cbar_endpoints is None else cbar_endpoints
+        cbar = mpl.colorbar.ColorbarBase(
+            cax,
+            cmap=cmap,
+            norm=mpl.colors.Normalize(vmin=endpoints[0], vmax=endpoints[1]),
+        )
+        cbar.set_label(cbar_title)
 
     plt.tight_layout()
 
