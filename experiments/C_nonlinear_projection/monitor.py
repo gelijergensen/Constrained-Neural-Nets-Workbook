@@ -151,9 +151,11 @@ class ProjectionMonitor(Monitor):
         # epoch and iteration are recorded automatically
         self.add_key("batch_size")
 
+        self.add_key("projection_epochs")
         self.add_key("mean_loss")
         self.add_key("constraints_error")
-        self.add_key("projection_epochs")
+        self.add_key("constraints_percentiles")
+        self.add_key("constraints_abs_percentiles")
         self.add_key("model_parameters_difference_percentiles")
 
         self.add_key("timing")
@@ -200,6 +202,19 @@ class ProjectionMonitor(Monitor):
                 weights=np.array(self.ctx["batch_size"]),
             )
         )
+        self.ctx["epoch_constraints_percentiles"].append(
+            np.percentile(
+                torch.cat(self.ctx["constraints"], dim=0).numpy(),
+                np.linspace(0, 100, num=101),
+            )
+        )
+        self.ctx["epoch_constraints_abs_percentiles"].append(
+            np.percentile(
+                torch.abs(torch.cat(self.ctx["constraints"], dim=0)).numpy(),
+                np.linspace(0, 100, num=101),
+            )
+        )
+
         # only the items with full batches
         timing_mask = (
             np.array(self.ctx["batch_size"])
@@ -225,12 +240,20 @@ class ProjectionMonitor(Monitor):
 
     def finalize(self, engine):
         self.add_value("batch_size", np.array(self.ctx["epoch_batch_size"]))
+        self.add_value(
+            "projection_epochs", len(np.array(self.ctx["epoch_batch_size"]))
+        )
         self.add_value("mean_loss", np.array(self.ctx["epoch_mean_loss"]))
         self.add_value(
             "constraints_error", np.array(self.ctx["epoch_constraints_error"])
         )
         self.add_value(
-            "projection_epochs", len(np.array(self.ctx["epoch_batch_size"]))
+            "constraints_percentiles",
+            np.array(self.ctx["epoch_constraints_percentiles"]),
+        )
+        self.add_value(
+            "constraints_abs_percentiles",
+            np.array(self.ctx["epoch_constraints_abs_percentiles"]),
         )
         # compute difference and percentiles thereof
         self.add_value(
@@ -254,6 +277,9 @@ class ProjectionMonitor(Monitor):
         )
         self.ctx["constraints_error"].append(
             self.get_tensor_item(engine.state.constraints_error)
+        )
+        self.ctx["constraints"].append(
+            self.get_tensor(engine.state.constraints)
         )
         self.ctx["model_parameters"].append(
             self.get_tensor(engine.state.model_parameters)
