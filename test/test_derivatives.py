@@ -26,6 +26,16 @@ def test_jacobian():
     for i in range(batchsize):
         assert torch.allclose(bat_jac[i], factor)
 
+    # test nonlinear case
+    rand_lengths = np.random.randint(1, 10, 2)
+    ins = torch.rand(
+        batchsize, *tuple(list(rand_lengths[-1:])), requires_grad=True
+    )
+    out = torch.sin(3.15 * ins + 2.91)
+    bat_jac = jacobian(out, ins, batched=True)
+    expected = torch.diag_embed(3.15 * torch.cos(3.15 * ins + 2.91))
+    assert torch.allclose(bat_jac, expected)
+
     # matrix * matrix  --
 
     # Unbatched
