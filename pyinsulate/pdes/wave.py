@@ -41,7 +41,7 @@ def helmholtz_equation(
 def pythagorean_equation(
     outputs, inputs, parameterization, return_diagnostics=False
 ):
-    """Computes the Pythagorean equation ((f * y)^2 + (y')^2 = 1), assuming 
+    """Computes the Pythagorean equation ((f * y)^2 + (y')^2 = f^2), assuming 
     that the network should satisfy that f * f * y = y'' (Helmholtz)
     
     :param outputs: output of some network
@@ -59,8 +59,8 @@ def pythagorean_equation(
 
     frequency = (2 * np.pi * parameterization[..., 1]).view(outputs.size())
     # r$ (f * y)^2 + (y')^2 = 1$
-    lhs = (torch.mul(frequency, outputs)) ** 2 + jac.view(outputs.size()) ** 2
-    rhs = lhs.new_ones(lhs.size())
+    lhs = (frequency * outputs) ** 2 + jac.view(outputs.size()) ** 2
+    rhs = lhs.new_ones(lhs.size()) * (frequency ** 2)
     if return_diagnostics:
         return lhs - rhs, (lhs, rhs, jac)
     else:
