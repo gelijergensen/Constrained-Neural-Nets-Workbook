@@ -11,7 +11,7 @@ The project is divided into 3 main directories: `experiments/`, `src/`, and `tes
 
 ## `experiments/`
 
-This directory contains the code specific to running particular experiments. Each experiment has its own subdirectory which contains all the code specific to that experiment. Additionally, in the top of this directory, there are a number of Jupyter Notebooks for running and visualizing the experiments. Lastly, we also have shell scripts for running batch jobs on a slurm system.
+This directory contains the code specific to running particular experiments. Each experiment has its own subdirectory which contains all the code specific to that experiment. Additionally, in the top of this directory, there are a number of Jupyter Notebooks for running and visualizing the experiments.
 
 ## `src/`
 
@@ -30,6 +30,8 @@ This directory houses some shell scripts necessary for submitting slurm jobs whi
 Here I have placed the markdown and supporting files which are hosted on the [Github Page](https://gelijergensen.github.io/Constrained-Neural-Nets-Workbook/).
 
 # Developing
+
+You may feel free to use this code in any way you like. Below, we detail the setup process for using this repository directly and also describe some of the best practices used in developing this code.
 
 ## Setup
 It is recommended that you develop on a conda virtual environment, even though we do actually run our tests in a minimal `pip` environment. The easiest way to set this up is as follows:
@@ -50,7 +52,7 @@ mkdir -p $CONDA_PREFIX/etc/conda/deactivate.d
 echo "unset SCRATCH" > $CONDA_PREFIX/etc/conda/deactivate.d/env_vars.sh
 ```
 
-Remember to re-activate the virtual environment for the changes to take place. From here, it is helpful to install a couple additional packages:
+Remember to re-activate the virtual environment for the changes to take place. From here, it is helpful to install a couple _optional_ packages:
 
 
 ```bash
@@ -82,7 +84,7 @@ This will run the test suite. Primarily, you want to make sure that the file `te
 ## Best Practices
 In order to produce the smallest possible diffs and to speed up development, we suggest a few best practices:
 
-### Use the pre-push githook
+### Use the pre-push githook to run tests locally
 
 We already have provided the pre-push githook which runs the test suite before allowing a `git push` command. You can enable this hook by adding the hooks path to your local git configuration:
 ```bash
@@ -90,15 +92,15 @@ git config --local core.hookspath .githooks
 ```
 If, for any reason, you need to perform a push without running the test suite, you can always use `git push --no-verify`
 
-### Do not work on the master branch
+### Work on feature branches
 
 We generally follow the [Git Feature Branch Workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/feature-branch-workflow). The general idea here is to create a local branch for each individual feature (`git checkout -b <branchname>`), work on that feature on your local branch and then push to the remote with `git push origin <branchname>`. From here, you can make a pull request and we can run tests on the new branch before squashing the commits into a single commit and merging them into the master branch. In this way, the master branch should always contain a working version of the code which passes the tests.
 
-### Cleaning and formatting
+### Clean and format code
 
 Jupyter notebooks can easily become very large when you keep the saved variables in them. Fortunately, there is a simple `pip` package which allows for the cleaning of notebooks ([clean_ipynb](https://github.com/KwatME/clean_ipynb)). Assuming you have this installed, you can simply run the clean script in the base of the repository (`source clean`), which will clean up all of the notebooks in the experiment directory. We recommend that you do this _before_ you perform a commit locally.
 
-We also use the [black autoformatter](https://pypi.org/project/black/) to ensure that the style of the code is consistent and to minimize the size of the diff files. We especially recommend here that you configure your IDE/code editor to automatically format on save. If you are using vscode and already have black installed (`pip install black`), you will want to add the following to your configuration:
+We also use the [black autoformatter](https://pypi.org/project/black/) to ensure that the style of the code is consistent and to minimize the size of the diff files. We especially recommend here that you configure your IDE/code editor to automatically format on save. If you are using [VS Code](https://code.visualstudio.com/) and already have black installed (`pip install black`), you will want to add the following to your configuration:
 
 ```json
 "editor.formatOnSave": true,
