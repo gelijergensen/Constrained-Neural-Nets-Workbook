@@ -1,0 +1,11 @@
+#!/bin/bash
+#SBATCH -N 1
+#SBATCH -C knl
+#SBATCH -q regular
+#SBATCH -J $1
+#SBATCH --mail-type=ALL
+#SBATCH -t 10:00:00
+#SBATCH --array=0-$2
+
+#run the application:
+srun -n 1 -c 272 --cpu_bind=cores -u python -u experiments/A_constrained_training/batch_submission.py $SLURM_ARRAY_TASK_ID

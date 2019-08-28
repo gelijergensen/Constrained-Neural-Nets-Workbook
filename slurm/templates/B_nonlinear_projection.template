@@ -8,4 +8,4 @@
 #SBATCH --array=0-$2
 
 #run the application:
-srun -n 1 -c 272 --cpu_bind=cores -u python -u experiments/$1/batch_submission.py $SLURM_ARRAY_TASK_ID
+srun -n 1 -c 272 --cpu_bind=cores -u python -u experiments/B_nonlinear_projection/batch_submission.py $SLURM_ARRAY_TASK_ID
