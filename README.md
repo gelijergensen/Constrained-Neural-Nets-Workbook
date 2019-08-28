@@ -1,5 +1,5 @@
-# PyInsulate [![Build Status](https://travis-ci.com/gelijergensen/pyinsulate.svg?token=JdexHmEcyj7BDKQEoi8S&branch=master)](https://travis-ci.com/gelijergensen/pyinsulate) [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-Tools for the training of networks with hard constraints in PyTorch
+# Constrained-Neural-Nets-Workbook [![Build Status](https://travis-ci.com/gelijergensen/Constrained-Neural-Nets-Workbook.svg?token=JdexHmEcyj7BDKQEoi8S&branch=master)](https://travis-ci.com/gelijergensen/Constrained-Neural-Nets-Workbook) [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+A workbook for examining some ideas for constraining neural networks.
 
 
 # Developing
