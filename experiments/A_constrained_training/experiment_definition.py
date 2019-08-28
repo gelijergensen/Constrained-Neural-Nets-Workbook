@@ -5,20 +5,10 @@ import numpy as np
 import sys
 from torch import nn
 
-from experiments.A_constrained_training.constraints import (
-    helmholtz_equation,
-    pythagorean_equation,
-)
+from .constraints import helmholtz_equation, pythagorean_equation
 
-from experiments.A_constrained_training.model import (
-    Dense,
-    ParameterizedDense,
-    Swish,
-)
-from experiments.A_constrained_training.reductions import (
-    Huber_Reduction,
-    Lp_Reduction,
-)
+from .model import Dense, ParameterizedDense, Swish
+from .reductions import Huber_Reduction, Lp_Reduction
 
 
 def get_configuration(index):
