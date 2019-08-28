@@ -9,9 +9,7 @@ with open("README.md", "r") as fh:
 
 PACKAGE_NAMES = ["src"]
 KEYWORDS = []
-SHORT_DESCRIPTION = (
-    "Tools for the training of networks with hard constraints in PyTorch"
-)
+SHORT_DESCRIPTION = "A workbook for examining some ideas for constraining neural networks in PyTorch"
 
 CLASSIFIERS = [
     "Development Status :: 2 - PreAlpha",
