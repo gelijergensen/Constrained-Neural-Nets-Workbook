@@ -1,3 +1,7 @@
+# Caution Regarding the Spectral-Model Branch
+
+This version of the code was an initial foray into using Spectral Methods to represent the functions. However, this was not fully implemented, as it was deemed not promising enough to continue. I have included the code here in the off chance that I or someone else wishes to use it in future work.
+
 # Constrained Neural Nets Workbook [![Build Status](https://travis-ci.com/gelijergensen/Constrained-Neural-Nets-Workbook.svg?token=JdexHmEcyj7BDKQEoi8S&branch=master)](https://travis-ci.com/gelijergensen/Constrained-Neural-Nets-Workbook) [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 A workbook for examining some ideas for constraining neural networks in PyTorch.
 
