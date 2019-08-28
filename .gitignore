@@ -30,3 +30,17 @@ results/
 
 # Temporary submit scripts
 temp_*.sh
+
+# Jekyll
+_site/
+.jekyll-cache
+.jekyll-metadata
+.sass-cache
+
+# Ruby
+.bundle/
+.byebug_history
+.ruby-gemset
+.ruby-version
+*.gem
+Gemfile.lock
