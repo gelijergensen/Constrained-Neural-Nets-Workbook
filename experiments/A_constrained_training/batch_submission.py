@@ -4,8 +4,8 @@ from datetime import datetime
 import sys
 import torch
 
-from experiments.A_proof_of_constraint.main import run_experiment
-from experiments.A_proof_of_constraint.experiment_definition import (
+from experiments.A_constrained_training.main import run_experiment
+from experiments.A_constrained_training.experiment_definition import (
     get_configuration,
 )
 

@@ -7,8 +7,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from pyinsulate.ignite import GradientConstraint, GradientLoss
-
 from .checkpointer import ModelAndMonitorCheckpointer
 from .constraints import helmholtz_equation, pythagorean_equation
 from .dataloader import get_multiwave_dataloaders

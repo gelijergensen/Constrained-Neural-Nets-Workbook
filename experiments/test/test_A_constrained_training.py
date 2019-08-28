@@ -4,12 +4,12 @@ import os
 import torch
 import torch.nn as nn
 
-from ..A_proof_of_constraint.constraints import (
+from ..A_constrained_training.constraints import (
     helmholtz_equation,
     pythagorean_equation,
 )
-from ..A_proof_of_constraint.main import run_experiment
-from ..A_proof_of_constraint.reductions import Lp_Reduction
+from ..A_constrained_training.main import run_experiment
+from ..A_constrained_training.reductions import Lp_Reduction
 
 
 def test_proof_of_constraint():

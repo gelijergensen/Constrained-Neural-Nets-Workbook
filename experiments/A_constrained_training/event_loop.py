@@ -12,7 +12,7 @@ try:
 except ImportError:
     from time import time as perf_counter
 
-from pyinsulate.lagrange import constrain_loss
+from src.lagrange import constrain_loss
 
 __all__ = ["create_engine", "Sub_Batch_Events"]
 

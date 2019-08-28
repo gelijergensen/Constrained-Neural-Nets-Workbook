@@ -1,7 +1,7 @@
 """These are actually thin wrappers around the PDE constraints, but they 
 correctly handle the passing of arguments"""
 
-from pyinsulate import pdes
+from src import pdes
 
 __all__ = ["helmholtz_equation", "pythagorean_equation"]
 

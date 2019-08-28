@@ -5,17 +5,17 @@ import numpy as np
 import sys
 from torch import nn
 
-from experiments.A_proof_of_constraint.constraints import (
+from experiments.A_constrained_training.constraints import (
     helmholtz_equation,
     pythagorean_equation,
 )
 
-from experiments.A_proof_of_constraint.model import (
+from experiments.A_constrained_training.model import (
     Dense,
     ParameterizedDense,
     Swish,
 )
-from experiments.A_proof_of_constraint.reductions import (
+from experiments.A_constrained_training.reductions import (
     Huber_Reduction,
     Lp_Reduction,
 )
