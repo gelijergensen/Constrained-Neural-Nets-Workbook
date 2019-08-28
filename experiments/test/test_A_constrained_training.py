@@ -12,10 +12,10 @@ from ..A_constrained_training.main import run_experiment
 from ..A_constrained_training.reductions import Lp_Reduction
 
 
-def test_proof_of_constraint():
+def test_constrained_training():
 
     CHECKPOINT_DIR = ".temp"
-    directory = os.path.join(CHECKPOINT_DIR, "test_proof_of_constraint")
+    directory = os.path.join(CHECKPOINT_DIR, "test_constrained_training")
     save_file_base = "quick-test"
 
     # Delete any files that somehow were left over in this directory
