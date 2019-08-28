@@ -1,4 +1,4 @@
-"""Setup file for pyinsulate"""
+"""Setup file for Constrained-Neural-Nets-Workbook"""
 
 from setuptools import setup
 
@@ -7,7 +7,7 @@ VERSION = "0.0.0.0"
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-PACKAGE_NAMES = ["pyinsulate"]
+PACKAGE_NAMES = ["src"]
 KEYWORDS = []
 SHORT_DESCRIPTION = (
     "Tools for the training of networks with hard constraints in PyTorch"
@@ -29,7 +29,7 @@ TEST_REQUIREMENTS = ["pytest", "clean_ipynb"]
 
 if __name__ == "__main__":
     setup(
-        name="pyinsulate",
+        name="Constrained-Neural-Nets-Workbook",
         version=VERSION,
         python_requires=">=3",
         description=SHORT_DESCRIPTION,
@@ -38,7 +38,7 @@ if __name__ == "__main__":
         long_description=long_description,
         long_description_content_type="text/markdown",
         license="MIT",
-        url="https://github.com/gelijergensen/pyinsulate",
+        url="https://github.com/gelijergensen/Constrained-Neural-Nets-Workbook",
         packages=PACKAGE_NAMES,
         scripts=[],
         keywords=KEYWORDS,

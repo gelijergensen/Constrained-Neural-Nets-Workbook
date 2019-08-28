@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 
-from pyinsulate.derivatives import jacobian, trace
+from src.derivatives import jacobian, trace
 
 
 def test_jacobian():

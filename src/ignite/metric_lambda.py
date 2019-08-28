@@ -2,7 +2,7 @@
 change: under the hood, this uses our version of metric (GradientMetric), which
 does not call torch.no_grad() on an update"""
 
-from pyinsulate.ignite.metric import GradientMetric
+from src.ignite.metric import GradientMetric
 from ignite.engine import Events
 import itertools
 

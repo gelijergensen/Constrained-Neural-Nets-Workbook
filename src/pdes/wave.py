@@ -3,7 +3,7 @@
 import numpy as np
 import torch
 
-from pyinsulate.derivatives import jacobian, jacobian_and_laplacian
+from src.derivatives import jacobian, jacobian_and_laplacian
 
 __all__ = ["helmholtz_equation", "pythagorean_equation"]
 

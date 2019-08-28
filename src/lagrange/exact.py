@@ -8,7 +8,7 @@ try:
 except ImportError:
     from time import time as perf_counter
 
-from pyinsulate.derivatives import jacobian
+from src.derivatives import jacobian
 
 
 class Timing_Events(Enum):

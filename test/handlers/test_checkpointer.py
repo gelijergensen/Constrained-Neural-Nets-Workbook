@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from torch import optim
 from ..load_test_data import get_mnist_dataloaders, DATA_DIR
 
-from pyinsulate.handlers import Checkpointer
+from src.handlers import Checkpointer
 
 
 class Mnist_Logistic(nn.Module):
