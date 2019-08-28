@@ -2,7 +2,7 @@
 
 import torch
 
-from pyinsulate.derivatives import jacobian_and_laplacian, divergence
+from src.derivatives import jacobian_and_laplacian, divergence
 
 __all__ = ["steady_state_turbulence"]
 

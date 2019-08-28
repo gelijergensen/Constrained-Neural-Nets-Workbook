@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torch import optim
 from ..load_test_data import get_mnist_dataloaders
 
-from pyinsulate.handlers import ObjectLogger
+from src.handlers import ObjectLogger
 
 
 class Mnist_Logistic(nn.Module):

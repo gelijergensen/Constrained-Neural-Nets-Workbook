@@ -5,7 +5,7 @@ does not call torch.no_grad() on an update"""
 from __future__ import division
 
 from ignite.exceptions import NotComputableError
-from pyinsulate.ignite.metric import GradientMetric
+from src.ignite.metric import GradientMetric
 
 
 class GradientConstraint(GradientMetric):

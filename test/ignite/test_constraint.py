@@ -2,7 +2,7 @@ from ignite.engine import Engine
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 
-from pyinsulate.ignite import GradientConstraint
+from src.ignite import GradientConstraint
 
 
 def test_GradientConstraint():
