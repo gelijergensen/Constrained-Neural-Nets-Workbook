@@ -4,11 +4,11 @@ import os
 import torch
 import torch.nn as nn
 
-from ..C_nonlinear_projection.constraints import (
+from ..B_nonlinear_projection.constraints import (
     helmholtz_equation,
     pythagorean_equation,
 )
-from ..C_nonlinear_projection.main import run_experiment
+from ..B_nonlinear_projection.main import run_experiment
 
 
 def test_proof_of_constraint():
@@ -41,7 +41,6 @@ def test_proof_of_constraint():
                 method=method,
                 constraint=constraint,
                 max_iterations=10,
-                tolerance=0,  # TODO relax this once we fix the bug
             )
 
             # Try to load in the model again

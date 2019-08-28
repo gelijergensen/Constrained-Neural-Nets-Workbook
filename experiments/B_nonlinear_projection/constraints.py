@@ -2,7 +2,7 @@
 correctly handle the passing of arguments"""
 
 import numpy as np
-from pyinsulate import pdes
+from src import pdes
 import torch
 
 __all__ = ["helmholtz_equation", "pythagorean_equation", "truth_residual"]

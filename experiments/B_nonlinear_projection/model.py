@@ -3,7 +3,7 @@
 import torch
 import torch.nn as nn
 
-from pyinsulate.projection import ProjectableModel
+from src.projection import ProjectableModel
 
 
 class Swish(object):

@@ -5,17 +5,17 @@ import numpy as np
 import sys
 from torch import nn
 
-from experiments.C_nonlinear_projection.constraints import (
+from experiments.B_nonlinear_projection.constraints import (
     helmholtz_equation,
     pythagorean_equation,
 )
 
-from experiments.C_nonlinear_projection.model import (
+from experiments.B_nonlinear_projection.model import (
     Dense,
     ParameterizedDense,
     Swish,
 )
-from experiments.C_nonlinear_projection.error_functions import (
+from experiments.B_nonlinear_projection.error_functions import (
     Huber_Error,
     Lp_Error,
 )

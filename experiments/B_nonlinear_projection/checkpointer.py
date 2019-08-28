@@ -1,7 +1,7 @@
 """Custom checkpointer to save out important configurations, all monitors, and
 the model"""
 
-from pyinsulate.handlers import Checkpointer
+from src.handlers import Checkpointer
 
 
 class ModelAndMonitorCheckpointer(Checkpointer):

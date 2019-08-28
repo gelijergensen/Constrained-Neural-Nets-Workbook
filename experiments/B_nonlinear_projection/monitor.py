@@ -4,7 +4,7 @@ from ignite.engine import Events
 import numpy as np
 import torch
 
-from pyinsulate.handlers import Monitor
+from src.handlers import Monitor
 
 
 class TrainingMonitor(Monitor):
