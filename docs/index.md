@@ -22,6 +22,8 @@ $$ mean = \frac{\displaystyle\sum_{i=1}^{n} x_{i}}{n} $$
 
 Here is where the description of Experiment B will go. Here is an example plot:
 
-<p align="center"> 
-<img src="resources/example-plot.png">
-</p>
+{% include image.html url="resources/example-plot.png" description="A caption for the figure" class="center" %}
+
+And here's the same image, but stretched:
+
+{% include image.html url="resources/example-plot.png" description="A caption for the figure" class="center-stretch" %}
