@@ -56,5 +56,5 @@ And here's the same image, but stretched:
 
 This is a link to [download the PDF][1] -->
 
-[1]:/downloads/Constrained_Neural_Nets_Workbook.pdf
-[2]:/downloads/Neural_Network_Optimization_Under_PDE_Constraints.pdf
+[1]:{{ site.url }}/downloads/Constrained_Neural_Nets_Workbook.pdf
+[2]:{{ site.url }}/downloads/Neural_Network_Optimization_Under_PDE_Constraints.pdf
