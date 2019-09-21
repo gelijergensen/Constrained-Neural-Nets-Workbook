@@ -8,7 +8,6 @@ install:
   -  pip install https://download.pytorch.org/whl/cu100/torchvision-0.3.0-cp36-cp36m-linux_x86_64.whl
   -  pip install pytorch-ignite
   -  pip install pytest
-  -  pip install clean_ipynb
   -  pip install -e .
 script: 
   - source loadTestData.sh
